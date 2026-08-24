@@ -1,4 +1,3 @@
-[README.md](https://github.com/user-attachments/files/31391233/README.md)
 <div align="center">
 
 <img src="sniper.png" width="120" alt="Oreo's Biome Sniper">
@@ -25,13 +24,26 @@
 
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/Oreo2137/Oreo-s-Biome-Sniper/main/screenshots/main.png" width="800" alt="Main tab">
+<img src="https://raw.githubusercontent.com/Oreo2137/Oreo-s-Biome-Sniper/main/main.png" width="800" alt="Main tab">
 <br><br>
-<img src="https://raw.githubusercontent.com/Oreo2137/Oreo-s-Biome-Sniper/main/screenshots/biomes.png" width="800" alt="Biomes tab">
+<img src="https://raw.githubusercontent.com/Oreo2137/Oreo-s-Biome-Sniper/main/biomes.png" width="800" alt="Biomes tab">
 <br><br>
-<img src="https://raw.githubusercontent.com/Oreo2137/Oreo-s-Biome-Sniper/main/screenshots/stats.png" width="800" alt="Stats tab">
+<img src="https://raw.githubusercontent.com/Oreo2137/Oreo-s-Biome-Sniper/main/stats.png" width="800" alt="Stats tab">
 
 </div>
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Download](#download)
+- [Quick Start](#quick-start)
+- [Building from Source](#building-from-source)
+- [Biome Priority](#biome-priority)
+- [Hotkeys](#hotkeys)
+- [License](#license)
+- [Support](#support)
 
 ---
 
