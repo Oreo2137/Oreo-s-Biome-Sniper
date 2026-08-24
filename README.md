@@ -39,15 +39,15 @@
 - Instant biome detection via Discord gateway
 - Automatic Roblox join via native `roblox://` deeplink
 - **Priority gate** — higher tier wins, drag chips to reorder within the same tier
-- Biome verification via BloxstrapRPC (detects bait automatically)
+- Biome verification via roblox logs detects bait automatically
 - Lock screen after each snipe with auto-unlock timer
-- Discord webhook support with embed previews and Join button
+- Discord webhook support with embeds
 - Snipe history with reaction time and join latency columns
 - Per-biome keywords, custom biomes, keyword blacklist
 - Roblox watchdog (auto-relaunches if Roblox closes)
 - Autostart timer and idle start reminder
 - Quick Settings with pinnable toggles
-- Native Windows notifications (no PowerShell)
+- Native Windows notifications
 - Custom snipe sound (WAV, MP3, OGG) with per-biome support
 - Single `.exe` — no Python install needed for end users
 
