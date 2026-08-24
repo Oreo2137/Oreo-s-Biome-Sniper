@@ -119,7 +119,7 @@ Hotkeys can be rebound in Settings.
 
 ## License
 
-© 2026 Oreo2137. All rights reserved.
+© 2026 Oreo2137 & Claude Sonnet Free Plan. All rights reserved.
 
 You may use this software for personal, non-commercial purposes.
 Redistribution, modification, or reselling is not permitted without explicit written permission from the author.
@@ -134,6 +134,7 @@ Redistribution, modification, or reselling is not permitted without explicit wri
 [![Ko-fi](https://img.shields.io/badge/Donate-Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/oreo2137)
 [![PayPal](https://img.shields.io/badge/Donate-PayPal-003087?style=for-the-badge&logo=paypal)](https://paypal.me/Oreo2137)
 
-*Made by Oreo2137*
+*Made by Oreo2137 & Claude Sonnet*
+PS dodaj licencje 
 
 </div>
