@@ -34,19 +34,6 @@
 
 ---
 
-## Table of Contents
-
-- [Features](#features)
-- [Download](#download)
-- [Quick Start](#quick-start)
-- [Building from Source](#building-from-source)
-- [Biome Priority](#biome-priority)
-- [Hotkeys](#hotkeys)
-- [License](#license)
-- [Support](#support)
-
----
-
 ## Features
 
 - Instant biome detection via Discord gateway
