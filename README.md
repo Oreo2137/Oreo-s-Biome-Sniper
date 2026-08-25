@@ -41,8 +41,10 @@
 - Priority gate — higher tier wins, drag chips to reorder within the same tier
 - Biome verification via roblox logs detects bait automatically
 - Lock screen after each snipe with auto-unlock timer
-- Discord webhook support with embeds
+- Automatic update notifications
+- Multi webhook support
 - Snipe history with reaction time and join latency columns
+- Custome biome creation and support 
 - Per-biome keywords, custom biomes, keyword blacklist
 - Roblox watchdog (auto-relaunches if Roblox closes)
 - Autostart timer and idle start reminder
