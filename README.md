@@ -38,7 +38,7 @@
 
 - Instant biome detection via Discord gateway
 - Automatic Roblox join via native `roblox://` deeplink
-- **Priority gate** — higher tier wins, drag chips to reorder within the same tier
+- Priority gate — higher tier wins, drag chips to reorder within the same tier
 - Biome verification via roblox logs detects bait automatically
 - Lock screen after each snipe with auto-unlock timer
 - Discord webhook support with embeds
