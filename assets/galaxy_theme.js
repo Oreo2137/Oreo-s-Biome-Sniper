@@ -387,12 +387,13 @@ class BlackHole {
     const sp=safePos(blackHoles,W*1.6,H*1.6,W*0.45);
     this.x3=sp.x3; this.y3=sp.y3;
     this.z=fresh?200+Math.random()*700:700+Math.random()*400; this.pz=this.z;
-    this.baseR=28+Math.random()*44;
+    this.baseR=10+Math.random()*28;    // losowa kula
+    this.diskRMult=7.5+Math.random()*5.5; // losowy rozmiar dysku
     this.speed=0.06+Math.random()*0.1;
     this.wf=0.1+Math.random()*0.15;
     this.globalAngle=Math.random()*Math.PI*2;
     // rings
-    this.diskFlatten=0.22+Math.random()*0.30;
+    this.diskFlatten=0.10+Math.random()*0.20;
     this.pulse=Math.random()*Math.PI*2; this.pulseSpeed=0.0008+Math.random()*0.001;
     this.fadeAlpha=fresh?1:0; this.dying=false;
   }
@@ -403,8 +404,14 @@ class BlackHole {
     this.y3+=wind.vy*dt*this.wf*(0.3+zf)*FOV*0.003;
     this.pulse+=this.pulseSpeed*dt;
     if(!this.dying&&this.fadeAlpha<1) this.fadeAlpha=Math.min(1,this.fadeAlpha+FADE_SPEED*0.5*dt);
-    if(this.z<=100&&!this.dying) this.dying=true;
-    if(this.dying) this.fadeAlpha=Math.max(0,this.fadeAlpha-FADE_SPEED*0.8*dt);
+    // dying gdy bardzo blisko LUB wychodzi poza ekran (z marginesem)
+    if(!this.dying){
+      const _sc=FOV/Math.max(this.z,1),_ox=pcx(this.z,this.wf),_oy=pcy(this.z,this.wf);
+      const _x=this.x3*_sc+_ox,_y=this.y3*_sc+_oy,_r=this.baseR*_sc;
+      const offscreen=_x<-_r*2||_x>W+_r*2||_y<-_r*2||_y>H+_r*2;
+      if(this.z<=100||offscreen) this.dying=true;
+    }
+    if(this.dying) this.fadeAlpha=Math.max(0,this.fadeAlpha-FADE_SPEED*0.45*dt);
     if(this.z<=5||this.fadeAlpha<=0) this.reset(false);
   }
   draw(){
@@ -416,7 +423,7 @@ class BlackHole {
     if(!isFinite(x+y+r)||r<2||x<-r*10||x>W+r*10||y<-r*10||y>H+r*10) return;
     const prox=Math.max(0,1-this.z/DEPTH);
     const alpha=Math.min(1,prox*3)*this.fadeAlpha;
-    if(alpha<0.02) return;z
+    if(alpha<0.02) return;
     const fl=1+0.04*Math.sin(this.pulse);
 
     // lensing rings ────────────────
@@ -449,7 +456,7 @@ class BlackHole {
     
     ctx.save();
     ctx.scale(1,this.diskFlatten);
-    const diskR=r*6.5*fl;  
+    const diskR=r*this.diskRMult*fl;
     const dg=ctx.createRadialGradient(0,0,r*0.92,0,0,diskR);
     dg.addColorStop(0,    `rgba(255,255,210,${alpha*0.98})`);
     dg.addColorStop(0.06, `rgba(255,230,100,${alpha*0.92})`);
@@ -461,17 +468,17 @@ class BlackHole {
     ctx.fillStyle=dg; ctx.globalCompositeOperation='screen'; ctx.fill();
     ctx.globalCompositeOperation='source-over';
     // bright photon ring ────────────────────────────────
-    ctx.beginPath(); ctx.arc(0,0,r*1.35,0,Math.PI*2);
-    ctx.strokeStyle=`rgba(255,235,170,${alpha*0.65})`; ctx.lineWidth=r*0.22; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,0,r*1.3,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(255,235,170,${alpha*0.70})`; ctx.lineWidth=r*0.18; ctx.stroke();
     // secondary faint ────────────────────────────────
-    ctx.beginPath(); ctx.arc(0,0,r*2.4,0,Math.PI*2);
-    ctx.strokeStyle=`rgba(255,180,80,${alpha*0.18})`; ctx.lineWidth=r*0.10; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,0,r*2.0,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(255,180,80,${alpha*0.20})`; ctx.lineWidth=r*0.08; ctx.stroke();
     ctx.restore();
 
     // event horizon ────────────────────────────────
-    ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill();
-    ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2);
-    ctx.strokeStyle=`rgba(255,200,80,${alpha*0.65})`; ctx.lineWidth=Math.max(1,r*0.09); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,0,r*0.82,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill();
+    ctx.beginPath(); ctx.arc(0,0,r*0.82,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(255,200,80,${alpha*0.65})`; ctx.lineWidth=Math.max(1,r*0.08); ctx.stroke();
 
     ctx.restore();
   }
@@ -486,8 +493,8 @@ class Galaxy {
     this.z=fresh?200+Math.random()*800:700+Math.random()*400; this.pz=this.z;
     this.baseR=55+Math.random()*95; this.speed=0.04+Math.random()*0.07;
     this.wf=0.08+Math.random()*0.12;
-    this.tilt=0.2+Math.random()*0.5; this.viewAngle=Math.random()*Math.PI;
-    this.spinAngle=Math.random()*Math.PI*2;
+    this.tilt=0.2+Math.random()*0.5; this.viewAngle=Math.random()*Math.PI*2;
+    this.spinAngle=0;  // zaczyna od 0, obraca się płynnie od viewAngle
     this.spinSpeed=(0.00003+Math.random()*0.00004)*(Math.random()<0.5?1:-1);
     this.arms=Math.random()<0.5?2:3;
     const warm=Math.random()<0.5;
@@ -501,8 +508,16 @@ class Galaxy {
     const sz=512,oc=document.createElement('canvas');
     oc.width=oc.height=sz;
     const ot=oc.getContext('2d'),cx2=sz/2,cy2=sz/2,mR=sz*0.46;
+    // galactic bulge — subtelny szerszy glow
+    const bg=ot.createRadialGradient(cx2,cy2,0,cx2,cy2,mR*0.38);
+    bg.addColorStop(0,`rgba(${this.cR},${this.cG},${this.cB},0.55)`);
+    bg.addColorStop(0.45,`rgba(${this.cR},${this.cG},${this.cB},0.18)`);
+    bg.addColorStop(1,`rgba(${this.cR},${this.cG},${this.cB},0)`);
+    ot.beginPath(); ot.arc(cx2,cy2,mR*0.38,0,Math.PI*2); ot.fillStyle=bg; ot.fill();
+    // jasny punkt centralny
     const cg=ot.createRadialGradient(cx2,cy2,0,cx2,cy2,mR*0.16);
     cg.addColorStop(0,'rgba(255,255,255,1)');
+    cg.addColorStop(0.15,'rgba(255,255,255,0.95)');
     cg.addColorStop(0.3,`rgba(${this.cR},${this.cG},${this.cB},0.9)`);
     cg.addColorStop(1,`rgba(${this.cR},${this.cG},${this.cB},0)`);
     ot.beginPath(); ot.arc(cx2,cy2,mR*0.16,0,Math.PI*2); ot.fillStyle=cg; ot.fill();
@@ -548,6 +563,7 @@ class Galaxy {
     ctx.save(); ctx.translate(x,y); ctx.rotate(this.viewAngle+this.spinAngle);
     ctx.scale(1,this.tilt); ctx.globalAlpha=a;
     ctx.globalCompositeOperation='screen';
+    // drawImage przesunięty tak żeby środek canvasu = środek galaktyki
     ctx.drawImage(this._cv,-ds/2,-ds/2,ds,ds);
     ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1; ctx.restore();
   }
@@ -573,7 +589,7 @@ class Quasar {
    
     if(Math.random()<0.8){ this.cr=140; this.cg=200; this.cb=255; }
     else                  { this.cr=255; this.cg=160; this.cb=80;  }
-    this.fadeAlpha=fresh?0.7:0; this.dying=false;
+    this.fadeAlpha=0; this.dying=false;
     this.opportunistic = !!opportunistic; // spawned by the 10s rule
   }
   update(dt){
@@ -582,10 +598,10 @@ class Quasar {
     this.x3+=wind.vx*dt*this.wf*(0.2+zf)*FOV*0.002;
     this.y3+=wind.vy*dt*this.wf*(0.2+zf)*FOV*0.002;
     this.pulse+=this.pulseSpeed*dt;
-    if(!this.dying&&this.fadeAlpha<0.85) this.fadeAlpha=Math.min(0.85,this.fadeAlpha+FADE_SPEED*0.35*dt);
-    if(this.z<=120&&!this.dying) this.dying=true;
-    if(this.dying) this.fadeAlpha=Math.max(0,this.fadeAlpha-FADE_SPEED*0.5*dt);
-    if(this.z<=5||this.fadeAlpha<=0) this.reset(false);
+    if(!this.dying&&this.fadeAlpha<0.85) this.fadeAlpha=Math.min(0.85,this.fadeAlpha+FADE_SPEED*0.2*dt);
+    if(this.z<=150&&!this.dying) this.dying=true;
+    if(this.dying) this.fadeAlpha=Math.max(0,this.fadeAlpha-FADE_SPEED*0.3*dt);
+    if(this.z<=5||this.fadeAlpha<=0){ quasars.splice(quasars.indexOf(this),1); }
   }
   // Is this quasar currently visible on screen ────────────────────────────────
   isOnScreen(){
@@ -627,22 +643,25 @@ class Quasar {
     // twin jets ────────────────────────────────────────────────────────────────
     const jl=r*40*fl;
     for(const sign of [1,-1]){
-      // main beam────────────────
-      const jg=ctx.createLinearGradient(0,0,0,sign*jl);
-      jg.addColorStop(0,  `rgba(${this.cr},${this.cg},${this.cb},${alpha*0.85})`);
-      jg.addColorStop(0.12,`rgba(${this.cr},${this.cg},${this.cb},${alpha*0.55})`);
-      jg.addColorStop(0.45,`rgba(${this.cr},${this.cg},${this.cb},${alpha*0.18})`);
-      jg.addColorStop(1,  `rgba(${this.cr},${this.cg},${this.cb},0)`);
-      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,sign*jl);
-      ctx.strokeStyle=jg; ctx.lineWidth=Math.max(0.5,r*0.55);
-      ctx.globalCompositeOperation='screen'; ctx.stroke();
-      // wider faint halo around jet ────────────────
-      const jg2=ctx.createLinearGradient(0,0,0,sign*jl*0.7);
-      jg2.addColorStop(0, `rgba(${this.cr},${this.cg},${this.cb},${alpha*0.25})`);
-      jg2.addColorStop(1, `rgba(${this.cr},${this.cg},${this.cb},0)`);
-      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,sign*jl*0.7);
-      ctx.strokeStyle=jg2; ctx.lineWidth=r*2.5;
-      ctx.stroke();
+      // main beam — safe linear()
+      const jg=linear(0,0,0,sign*jl);
+      if(ok(jg)){
+        jg.addColorStop(0,  `rgba(${this.cr},${this.cg},${this.cb},${alpha*0.85})`);
+        jg.addColorStop(0.12,`rgba(${this.cr},${this.cg},${this.cb},${alpha*0.55})`);
+        jg.addColorStop(0.45,`rgba(${this.cr},${this.cg},${this.cb},${alpha*0.18})`);
+        jg.addColorStop(1,  `rgba(${this.cr},${this.cg},${this.cb},0)`);
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,sign*jl);
+        ctx.strokeStyle=jg; ctx.lineWidth=Math.max(0.5,r*0.55);
+        ctx.globalCompositeOperation='screen'; ctx.stroke();
+      }
+      const jg2=linear(0,0,0,sign*jl*0.7);
+      if(ok(jg2)){
+        jg2.addColorStop(0, `rgba(${this.cr},${this.cg},${this.cb},${alpha*0.25})`);
+        jg2.addColorStop(1, `rgba(${this.cr},${this.cg},${this.cb},0)`);
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,sign*jl*0.7);
+        ctx.strokeStyle=jg2; ctx.lineWidth=r*2.5;
+        ctx.stroke();
+      }
       ctx.globalCompositeOperation='source-over';
     }
 
@@ -650,14 +669,16 @@ class Quasar {
     ctx.save();
     ctx.scale(1,this.diskFlatten);
     const diskR=r*5.5*fl;
-    const dg=ctx.createRadialGradient(0,0,r*0.6,0,0,diskR);
-    dg.addColorStop(0,   `rgba(255,255,255,${alpha*0.95})`);
-    dg.addColorStop(0.08,`rgba(${this.cr},${this.cg},${this.cb},${alpha*0.85})`);
-    dg.addColorStop(0.30,`rgba(${Math.floor(this.cr*0.7)},${Math.floor(this.cg*0.5)},${Math.floor(this.cb*0.3)},${alpha*0.35})`);
-    dg.addColorStop(1,   `rgba(0,0,0,0)`);
-    ctx.beginPath(); ctx.arc(0,0,diskR,0,Math.PI*2);
-    ctx.fillStyle=dg; ctx.globalCompositeOperation='screen'; ctx.fill();
-    ctx.globalCompositeOperation='source-over';
+    const dg=radial(0,0,r*0.6,0,0,diskR);
+    if(ok(dg)){
+      dg.addColorStop(0,   `rgba(255,255,255,${alpha*0.95})`);
+      dg.addColorStop(0.08,`rgba(${this.cr},${this.cg},${this.cb},${alpha*0.85})`);
+      dg.addColorStop(0.30,`rgba(${Math.floor(this.cr*0.7)},${Math.floor(this.cg*0.5)},${Math.floor(this.cb*0.3)},${alpha*0.35})`);
+      dg.addColorStop(1,   `rgba(0,0,0,0)`);
+      ctx.beginPath(); ctx.arc(0,0,diskR,0,Math.PI*2);
+      ctx.fillStyle=dg; ctx.globalCompositeOperation='screen'; ctx.fill();
+      ctx.globalCompositeOperation='source-over';
+    }
     ctx.restore();
 
     // point-like core
@@ -774,13 +795,20 @@ class Comet {
 class Pulsar {
   constructor(fresh){ this.reset(fresh); }
   reset(fresh){
-    const sp=safePos(pulsars,W*1.5,H*1.5,W*0.38);
-    this.x3=sp.x3; this.y3=sp.y3;
+    // corner bias — pulsary preferują rogi
+    const cornerX=(Math.random()<0.5?-1:1)*(W*0.25+Math.random()*W*0.35);
+    const cornerY=(Math.random()<0.5?-1:1)*(H*0.25+Math.random()*H*0.35);
+    this.x3=cornerX; this.y3=cornerY;
     this.z=fresh?250+Math.random()*750:800+Math.random()*300; this.pz=this.z;
     this.speed=0.22+Math.random()*0.3; this.wf=0.25+Math.random()*0.35;
     this.beamAngle=Math.random()*Math.PI*2;
-    this.rotSpeed=(0.004+Math.random()*0.008)*(Math.random()<0.5?1:-1);
-    this.phase=Math.random()*Math.PI*2; this.phaseSpeed=0.004+Math.random()*0.006;
+    // personality — każdy pulsar jest inny
+    this.fastRotator = Math.random()<0.5;  // szybki vs wolny obrót
+    this.rotSpeed=(this.fastRotator?0.010+Math.random()*0.012:0.002+Math.random()*0.004)*(Math.random()<0.5?1:-1);
+    this.brightness = 0.45+Math.random()*0.55;  // jasność 0.45–1.0
+    this.fastBlink = Math.random()<0.5;          // szybkie vs wolne miganie
+    this.phase=Math.random()*Math.PI*2;
+    this.phaseSpeed=this.fastBlink?0.010+Math.random()*0.012:0.002+Math.random()*0.005;
     this.fadeAlpha=fresh?1:0; this.dying=false;
   }
   update(dt){
@@ -793,7 +821,11 @@ class Pulsar {
     if(!this.dying&&this.fadeAlpha<1) this.fadeAlpha=Math.min(1,this.fadeAlpha+FADE_SPEED*dt);
     if(this.z<=60&&!this.dying) this.dying=true;
     if(this.dying) this.fadeAlpha=Math.max(0,this.fadeAlpha-FADE_SPEED*dt);
-    if(this.z<=5||this.fadeAlpha<=0) this.reset(false);
+    if(this.z<=5||this.fadeAlpha<=0){
+      // respawn tylko jeśli aktywnych jest < 2
+      if(pulsars.filter(p=>!p.dying).length<=2) this.reset(false);
+      else pulsars.splice(pulsars.indexOf(this),1);
+    }
   }
   draw(){
     if(!isFinite(this.z)||this.z<=0||this.fadeAlpha<0.01) return;
@@ -806,14 +838,15 @@ class Pulsar {
     if(a<0.02) return;
     const r=Math.max(1.5,2.5*sc);
     const bp=0.35+0.65*Math.abs(Math.sin(this.phase));
+    const bright=this.brightness??0.8;
     const beamLen=(80+bp*150)*sc;
     for(const sign of [1,-1]){
       const bx=x+Math.cos(this.beamAngle)*sign*beamLen;
       const by=y+Math.sin(this.beamAngle)*sign*beamLen;
       const bg=linear(x,y,bx,by);
       if(ok(bg)){
-        bg.addColorStop(0,`rgba(140,210,255,${a*0.85*bp})`);
-        bg.addColorStop(0.4,`rgba(80,170,255,${a*0.3*bp})`);
+        bg.addColorStop(0,`rgba(140,210,255,${a*bright*bp})`);
+        bg.addColorStop(0.4,`rgba(80,170,255,${a*bright*0.35*bp})`);
         bg.addColorStop(1,'rgba(60,130,255,0)');
         ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(bx,by);
         ctx.strokeStyle=bg; ctx.lineWidth=Math.max(0.5,r*0.8);
@@ -821,7 +854,7 @@ class Pulsar {
         ctx.globalCompositeOperation='source-over';
       }
     }
-    drawStar(x,y,200,230,255,a,r,4,r*3*(0.5+bp*0.5));
+    drawStar(x,y,200,230,255,a*bright,r,4,r*3*(0.5+bp*0.5));
   }
 }
 
@@ -835,10 +868,10 @@ class SuperBlackHole {
   reset(){
     this.x3=(Math.random()-0.5)*W*0.85; this.y3=(Math.random()-0.5)*H*0.85;
     this.z=480+Math.random()*480; this.pz=this.z;
-    this.baseR=50+Math.random()*35;
+    this.baseR=18+Math.random()*48;  // losowa kula
     this.speed=0.006+Math.random()*0.01; this.wf=0.04+Math.random()*0.06;
     this.globalAngle=Math.random()*Math.PI*2;
-    this.diskFlatten=0.12+Math.random()*0.20;
+    this.diskFlatten=0.08+Math.random()*0.18;
     this.pulse=Math.random()*Math.PI*2; this.pulseSpeed=0.0004+Math.random()*0.0005;
     this.fadeAlpha=0; this.dying=false; this.lifeTime=0;
     this.maxLife=75000+Math.random()*55000;
@@ -920,7 +953,7 @@ class SuperBlackHole {
       ctx.globalCompositeOperation='source-over';
     }
     ctx.save(); ctx.scale(1,this.diskFlatten);
-    const diskR=r*4.2*fl;
+    const diskR=r*9.5*fl;
     const dg=ctx.createRadialGradient(0,0,r*0.88,0,0,diskR);
     dg.addColorStop(0,`rgba(255,255,230,${a*0.98})`);
     dg.addColorStop(0.08,`rgba(255,220,80,${a*0.9})`);
@@ -933,9 +966,9 @@ class SuperBlackHole {
     ctx.beginPath(); ctx.arc(0,0,r*1.25,0,Math.PI*2);
     ctx.strokeStyle=`rgba(255,245,190,${a*0.65})`; ctx.lineWidth=r*0.2; ctx.stroke();
     ctx.restore();
-    ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill();
-    ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2);
-    ctx.strokeStyle=`rgba(255,215,100,${a*0.75})`; ctx.lineWidth=Math.max(1.5,r*0.1); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,0,r*0.80,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill();
+    ctx.beginPath(); ctx.arc(0,0,r*0.80,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(255,215,100,${a*0.75})`; ctx.lineWidth=Math.max(1.5,r*0.09); ctx.stroke();
     ctx.restore();
     for(const {wx,wy,depth,p} of pdata){ if(depth>=0) this._planet(wx,wy,p,a,r); }
   }
@@ -1076,12 +1109,15 @@ const stars=[],dust=[],nebulae=[],clusters=[],blackHoles=[],galaxies=[],comets=[
 const superBHs=[];
 
 const quasars=[];
-let _emptyTimer=0;       
-const EMPTY_THRESHOLD=10000; // 10 seconds
-let _quasarOpTimer=0;    
-const QUASAR_OP_INTERVAL=60000;
+let _emptyTimer=0;
+const EMPTY_THRESHOLD=8000;  // 8s empty before quasar spawns
+let _quasarOpTimer=0;
+const QUASAR_OP_INTERVAL=90000; // 90s between quasars
 
-let shootingStars=[],supernovae=[],ssTimer=1200,sbhTimer=45000,sbhWaiting=true;
+let shootingStars=[],supernovae=[],ssTimer=1200;
+let sbhWaiting=false, sbhNoBHTimer=0;
+const SBH_NO_BH_THRESHOLD=5000; // 5s bez zwykłej BH → może się spawnować SBH
+let sbhGracePeriod=0; // po śmierci SBH BH odczekują 3s
 let snCooldown=0;
 
 function resize(){
@@ -1097,7 +1133,7 @@ function init(){
   resize();
   stars.length=dust.length=nebulae.length=clusters.length=0;
   blackHoles.length=galaxies.length=quasars.length=0;
-  superBHs.length=0; sbhTimer=45000; sbhWaiting=true;
+  superBHs.length=0; sbhWaiting=false; sbhNoBHTimer=0; sbhGracePeriod=0;
   supernovae.length=0; snCooldown=8000;
   _emptyTimer=0; _quasarOpTimer=0;
   for(let i=0;i<STAR_COUNT;i++)    stars.push(new Star(true));
@@ -1109,10 +1145,9 @@ function init(){
   galaxies.push(new Galaxy(true));
   galaxies.push(new Galaxy(true));
   for(let i=0;i<COMET_COUNT;i++)   comets.push(new Comet(true));
-  const nq=1+Math.floor(Math.random()*3);
-  for(let i=0;i<nq;i++) quasars.push(new Quasar(true));
-  { const np=Math.random()<0.08?3+Math.floor(Math.random()*3):1+Math.floor(Math.random()*2);
-    for(let i=0;i<np;i++) pulsars.push(new Pulsar(true)); }
+  // quasars start empty — first spawns after 8s idle
+  // max 2 pulsary, 2 zawsze na starcie
+  pulsars.push(new Pulsar(true)); pulsars.push(new Pulsar(true));
 }
 
 function _majorOnScreen(){
@@ -1146,23 +1181,26 @@ function loop(now){
   supernovae=supernovae.filter(sn=>!sn.dead);
   if(snFlash.active){ snFlash.elapsed+=dt; if(snFlash.elapsed>=snFlash.duration) snFlash.active=false; }
   const sbhActive=superBHs.length>0;
-  if(sbhWaiting){ sbhTimer-=dt; if(sbhTimer<=0){ superBHs.push(new SuperBlackHole()); sbhWaiting=false; } }
+  // SBH spawnuje się gdy nie ma żadnej zwykłej BH na ekranie przez 5s (i brak SBH już)
+  if(!sbhActive){
+    const anyBHVisible=blackHoles.some(bh=>{
+      const _sc=FOV/Math.max(bh.z,1),_ox=pcx(bh.z,bh.wf),_oy=pcy(bh.z,bh.wf);
+      const _x=bh.x3*_sc+_ox,_y=bh.y3*_sc+_oy,_r=bh.baseR*_sc;
+      return _x>-_r&&_x<W+_r&&_y>-_r&&_y<H+_r&&bh.fadeAlpha>0.15;
+    });
+    if(anyBHVisible) sbhNoBHTimer=0;
+    else { sbhNoBHTimer+=dt; if(sbhNoBHTimer>=SBH_NO_BH_THRESHOLD) superBHs.push(new SuperBlackHole()); sbhNoBHTimer=0; }
+  } else sbhNoBHTimer=0;
 
-  // ── Quasar opportunistic spawn logic ─────────────────────────────────────
-  if(_majorOnScreen()){
-    _emptyTimer=0; 
-  } else {
-    _emptyTimer+=dt;
-    // after 10s 1/300 chanec ────────────────
-    if(_emptyTimer>=EMPTY_THRESHOLD){
-      _quasarOpTimer+=dt;
-      if(_quasarOpTimer>=QUASAR_OP_INTERVAL){
-        _quasarOpTimer=0;
-        if(Math.random()<1/300){
-          quasars.push(new Quasar(false,true));
-        }
-      }
+  // ── Quasar spawn — 1/300 chance per minute, bez SBH, max 1 ──────────
+  if(quasars.length===0&&superBHs.length===0){
+    _quasarOpTimer+=dt;
+    if(_quasarOpTimer>=60000){ // co minutę
+      _quasarOpTimer=0;
+      if(Math.random()<1/300) quasars.push(new Quasar(false,true));
     }
+  } else if(quasars.length>0||superBHs.length>0){
+    _quasarOpTimer=0;
   }
 
   camPhaseLocal+=0.00012*dt;
@@ -1172,6 +1210,7 @@ function loop(now){
   ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
 
   ctx.save();
+  try {
   ctx.translate(cx,cy); ctx.rotate(roll); ctx.translate(-cx,-cy);
   ctx.fillStyle='#000';
   const pad=Math.ceil(Math.max(W,H)*0.05);
@@ -1180,7 +1219,7 @@ function loop(now){
   ctx.globalAlpha=sceneAlpha;
   drawBand();
   // Draw quasars first ────────────────────────────────────────────────────────────────────────────────
-  for(const q of quasars){ q.update(dt); q.draw(); }
+  for(let qi=quasars.length-1;qi>=0;qi--){ quasars[qi].update(dt); quasars[qi].draw(); }
   for(const n of nebulae)   { n.update(dt); n.draw(); }
   for(const cl of clusters)  { cl.update(dt); cl.draw(); }
   for(const g of galaxies)   { g.update(dt); g.draw(); }
@@ -1189,11 +1228,18 @@ function loop(now){
   for(const ss of shootingStars){ ss.update(dt); ss.draw(); }
   shootingStars=shootingStars.filter(ss=>!ss.dead);
   for(const sn of supernovae){ sn.update(dt); sn.draw(); }
-  for(const sbh of superBHs){ sbh.update(dt); sbh.draw(); if(sbh.isDead){ superBHs.splice(superBHs.indexOf(sbh),1); sbhTimer=240000+Math.random()*60000; sbhWaiting=true; } }
-  for(const bh of blackHoles){ bh.update(dt); if(!sbhActive) bh.draw(); }
+  if(sbhActive) sbhGracePeriod=3000;
+  else if(sbhGracePeriod>0) sbhGracePeriod-=dt;
+  for(const sbh of superBHs){ sbh.update(dt); sbh.draw(); if(sbh.isDead){ superBHs.splice(superBHs.indexOf(sbh),1); sbhNoBHTimer=0; } }
+  for(const bh of blackHoles){ bh.update(dt); if(!sbhActive&&sbhGracePeriod<=0) bh.draw(); }
   for(const d of dust)       { d.update(dt); d.draw(); }
   for(const s of stars)      { s.update(dt); s.draw(); }
   ctx.globalAlpha=1;
+  } catch(e) {
+    ctx.globalAlpha=1;
+    ctx.globalCompositeOperation='source-over';
+    console.warn('[galaxyBg] render error:', e);
+  }
   ctx.restore();
 
   if(snFlash.active&&snFlash.alpha>0.005){
