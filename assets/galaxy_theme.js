@@ -1,8 +1,3 @@
-// ══════════════════════════════════════════════════════════════════
-//  Galaxy Background 
-//  
-//  https://github.com/Oreo2137/Oreo-s-Biome-Sniper/tree/main/assetsgalaxy_theme.js        
-// ══════════════════════════════════════════════════════════════════
 window.galaxyBg = (function(){
   var _raf = null;
   var _running = false;
@@ -32,7 +27,6 @@ const NEBULA_PALETTES = [
   {r:255,g:200,b:80 }, {r:60, g:120,b:255},
 ];
 
-// ── Kinda like wind movement ────────────────────────────────────────────────────────────
 const wind = {x:0,y:0,vx:0,vy:0,tx:0,ty:0,timer:0,period:5000,drift:0};
 function updateWind(dt){
   wind.drift += 0.00004*dt;
@@ -51,7 +45,6 @@ function updateWind(dt){
   wind.y*=1-Math.pow(0.999,dt)*(Math.abs(wind.y)/md);
 }
 
-// ── Horizon ────────────────────────────────────────────────────────────
 const horizon = {
   angle:0.38, targetAngle:0.38, timerAngle:18000,
   thickness:0, targetThickness:0, timerThickness:22000,
@@ -84,7 +77,6 @@ function updateHorizon(dt){
   horizon.alpha     += (horizon.targetAlpha     - horizon.alpha)     * eAlpha;
 }
 
-// ── Mouse movement ────────────────────────────────────────────────────────────────────
 const mouse={nx:0,ny:0,x:0,y:0};
 window.addEventListener('mousemove',e=>{
   mouse.nx=(e.clientX-W*0.5)/(W*0.5);
@@ -111,7 +103,6 @@ function linear(x0,y0,x1,y1){
 }
 function ok(g){ return g!==_D; }
 
-// ── Milky Way that bright line ────────────────────────────────────────────────────────────
 function drawBand(){
   const bx=cx+wind.x*0.2+mouse.x*-8, by=cy+wind.y*0.2+mouse.y*-5;
   const ang=horizon.angle+wind.drift*0.04;
@@ -186,7 +177,6 @@ function safePos(arr,rangeX,rangeY,minDist,tries=12){
   return {x3:(Math.random()-0.5)*rangeX, y3:(Math.random()-0.5)*rangeY};
 }
 
-// ── Stars ──────────────────────────────────────────────────────────────────────
 class Star {
   constructor(fresh){ this.reset(fresh); }
   reset(fresh){
@@ -240,7 +230,6 @@ class Star {
   }
 }
 
-// ── Nebula ────────────────────────────────────────────────────────────────────
 class Nebula {
   constructor(fresh){ this.reset(fresh); }
   reset(fresh){
@@ -283,7 +272,6 @@ class Nebula {
   }
 }
 
-// ── DustClouds ─────────────────────────────────────────────────────────────────
 class DustCloud {
   constructor(fresh){ this.reset(fresh); }
   reset(fresh){
@@ -325,7 +313,6 @@ class DustCloud {
   }
 }
 
-// ── StarClusters ───────────────────────────────────────────────────────────────
 class StarCluster {
   constructor(fresh){ this.reset(fresh); }
   reset(fresh){
@@ -378,21 +365,18 @@ class StarCluster {
   }
 }
 
-
-// ── BlackHole  
-
 class BlackHole {
   constructor(fresh){ this.reset(fresh); }
   reset(fresh){
     const sp=safePos(blackHoles,W*1.6,H*1.6,W*0.45);
     this.x3=sp.x3; this.y3=sp.y3;
     this.z=fresh?200+Math.random()*700:700+Math.random()*400; this.pz=this.z;
-    this.baseR=10+Math.random()*28;    // losowa kula
-    this.diskRMult=7.5+Math.random()*5.5; // losowy rozmiar dysku
+    this.baseR=10+Math.random()*28;
+    this.diskRMult=7.5+Math.random()*5.5;
     this.speed=0.06+Math.random()*0.1;
     this.wf=0.1+Math.random()*0.15;
     this.globalAngle=Math.random()*Math.PI*2;
-    // rings
+
     this.diskFlatten=0.10+Math.random()*0.20;
     this.pulse=Math.random()*Math.PI*2; this.pulseSpeed=0.0008+Math.random()*0.001;
     this.fadeAlpha=fresh?1:0; this.dying=false;
@@ -404,7 +388,7 @@ class BlackHole {
     this.y3+=wind.vy*dt*this.wf*(0.3+zf)*FOV*0.003;
     this.pulse+=this.pulseSpeed*dt;
     if(!this.dying&&this.fadeAlpha<1) this.fadeAlpha=Math.min(1,this.fadeAlpha+FADE_SPEED*0.5*dt);
-    // dying gdy bardzo blisko LUB wychodzi poza ekran (z marginesem)
+
     if(!this.dying){
       const _sc=FOV/Math.max(this.z,1),_ox=pcx(this.z,this.wf),_oy=pcy(this.z,this.wf);
       const _x=this.x3*_sc+_ox,_y=this.y3*_sc+_oy,_r=this.baseR*_sc;
@@ -412,7 +396,7 @@ class BlackHole {
       if(this.z<=100||offscreen) this.dying=true;
     }
     if(this.dying) this.fadeAlpha=Math.max(0,this.fadeAlpha-FADE_SPEED*0.45*dt);
-    if(this.z<=5||this.fadeAlpha<=0) this.reset(false);
+    if(this.z<=5||this.fadeAlpha<=0) this._dead=true;
   }
   draw(){
     if(!isFinite(this.z)||this.z<=0||this.fadeAlpha<0.01) return;
@@ -426,7 +410,6 @@ class BlackHole {
     if(alpha<0.02) return;
     const fl=1+0.04*Math.sin(this.pulse);
 
-    // lensing rings ────────────────
     for(let i=5;i>=1;i--){
       const lr=r*(2.2+i*0.9);
       const lg=ctx.createRadialGradient(x,y,lr*0.8,x,y,lr);
@@ -440,7 +423,6 @@ class BlackHole {
     ctx.translate(x,y);
     ctx.rotate(this.globalAngle);
 
-    // jets ────────────────────────────────────────────────
     const jl=r*10*fl;
     for(const sign of [1,-1]){
       const jg=ctx.createLinearGradient(0,0,0,sign*jl);
@@ -467,15 +449,14 @@ class BlackHole {
     ctx.beginPath(); ctx.arc(0,0,diskR,0,Math.PI*2);
     ctx.fillStyle=dg; ctx.globalCompositeOperation='screen'; ctx.fill();
     ctx.globalCompositeOperation='source-over';
-    // bright photon ring ────────────────────────────────
+
     ctx.beginPath(); ctx.arc(0,0,r*1.3,0,Math.PI*2);
     ctx.strokeStyle=`rgba(255,235,170,${alpha*0.70})`; ctx.lineWidth=r*0.18; ctx.stroke();
-    // secondary faint ────────────────────────────────
+
     ctx.beginPath(); ctx.arc(0,0,r*2.0,0,Math.PI*2);
     ctx.strokeStyle=`rgba(255,180,80,${alpha*0.20})`; ctx.lineWidth=r*0.08; ctx.stroke();
     ctx.restore();
 
-    // event horizon ────────────────────────────────
     ctx.beginPath(); ctx.arc(0,0,r*0.82,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill();
     ctx.beginPath(); ctx.arc(0,0,r*0.82,0,Math.PI*2);
     ctx.strokeStyle=`rgba(255,200,80,${alpha*0.65})`; ctx.lineWidth=Math.max(1,r*0.08); ctx.stroke();
@@ -484,7 +465,6 @@ class BlackHole {
   }
 }
 
-// ── Galaxy ────────────────────────────────────────────────────────────────────
 class Galaxy {
   constructor(fresh){ this.reset(fresh); }
   reset(fresh){
@@ -494,7 +474,7 @@ class Galaxy {
     this.baseR=55+Math.random()*95; this.speed=0.04+Math.random()*0.07;
     this.wf=0.08+Math.random()*0.12;
     this.tilt=0.2+Math.random()*0.5; this.viewAngle=Math.random()*Math.PI*2;
-    this.spinAngle=0;  // zaczyna od 0, obraca się płynnie od viewAngle
+    this.spinAngle=0;
     this.spinSpeed=(0.00003+Math.random()*0.00004)*(Math.random()<0.5?1:-1);
     this.arms=Math.random()<0.5?2:3;
     const warm=Math.random()<0.5;
@@ -508,13 +488,13 @@ class Galaxy {
     const sz=512,oc=document.createElement('canvas');
     oc.width=oc.height=sz;
     const ot=oc.getContext('2d'),cx2=sz/2,cy2=sz/2,mR=sz*0.46;
-    // galactic bulge — subtelny szerszy glow
+
     const bg=ot.createRadialGradient(cx2,cy2,0,cx2,cy2,mR*0.38);
     bg.addColorStop(0,`rgba(${this.cR},${this.cG},${this.cB},0.55)`);
     bg.addColorStop(0.45,`rgba(${this.cR},${this.cG},${this.cB},0.18)`);
     bg.addColorStop(1,`rgba(${this.cR},${this.cG},${this.cB},0)`);
     ot.beginPath(); ot.arc(cx2,cy2,mR*0.38,0,Math.PI*2); ot.fillStyle=bg; ot.fill();
-    // jasny punkt centralny
+
     const cg=ot.createRadialGradient(cx2,cy2,0,cx2,cy2,mR*0.16);
     cg.addColorStop(0,'rgba(255,255,255,1)');
     cg.addColorStop(0.15,'rgba(255,255,255,0.95)');
@@ -563,24 +543,21 @@ class Galaxy {
     ctx.save(); ctx.translate(x,y); ctx.rotate(this.viewAngle+this.spinAngle);
     ctx.scale(1,this.tilt); ctx.globalAlpha=a;
     ctx.globalCompositeOperation='screen';
-    // drawImage przesunięty tak żeby środek canvasu = środek galaktyki
+
     ctx.drawImage(this._cv,-ds/2,-ds/2,ds,ds);
     ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1; ctx.restore();
   }
 }
-
-
-// ── Quasar ────────────────────────────────────────────────────────────────────────────────
 
 class Quasar {
   constructor(fresh, opportunistic){ this.reset(fresh, opportunistic); }
   reset(fresh, opportunistic){
     const sp=safePos(quasars,W*1.7,H*1.7,W*0.30);
     this.x3=sp.x3; this.y3=sp.y3;
-    // ────────────────────────────────────────────────────────────────
+
     this.z=fresh?600+Math.random()*550:900+Math.random()*200; this.pz=this.z;
-    this.baseR=5+Math.random()*9;          // small — far away
-    this.speed=0.015+Math.random()*0.025;  // moves slowly
+    this.baseR=5+Math.random()*9;
+    this.speed=0.015+Math.random()*0.025;
     this.wf=0.05+Math.random()*0.08;
     this.globalAngle=Math.random()*Math.PI*2;
     this.diskFlatten=0.10+Math.random()*0.18;
@@ -590,7 +567,7 @@ class Quasar {
     if(Math.random()<0.8){ this.cr=140; this.cg=200; this.cb=255; }
     else                  { this.cr=255; this.cg=160; this.cb=80;  }
     this.fadeAlpha=0; this.dying=false;
-    this.opportunistic = !!opportunistic; // spawned by the 10s rule
+    this.opportunistic = !!opportunistic;
   }
   update(dt){
     this.pz=this.z; this.z-=this.speed*dt*0.05;
@@ -603,7 +580,7 @@ class Quasar {
     if(this.dying) this.fadeAlpha=Math.max(0,this.fadeAlpha-FADE_SPEED*0.3*dt);
     if(this.z<=5||this.fadeAlpha<=0){ quasars.splice(quasars.indexOf(this),1); }
   }
-  // Is this quasar currently visible on screen ────────────────────────────────
+
   isOnScreen(){
     if(!isFinite(this.z)||this.z<=0||this.fadeAlpha<0.01) return false;
     const sc=FOV/this.z;
@@ -623,7 +600,6 @@ class Quasar {
     if(alpha<0.015) return;
     const fl=1+0.06*Math.sin(this.pulse);
 
-    // outer glow halo — very bright bloom ────────────────
     const haloR=r*22*fl;
     const hg=radial(x,y,r*0.5,x,y,haloR);
     if(ok(hg)){
@@ -640,10 +616,9 @@ class Quasar {
     ctx.translate(x,y);
     ctx.rotate(this.globalAngle);
 
-    // twin jets ────────────────────────────────────────────────────────────────
     const jl=r*40*fl;
     for(const sign of [1,-1]){
-      // main beam — safe linear()
+
       const jg=linear(0,0,0,sign*jl);
       if(ok(jg)){
         jg.addColorStop(0,  `rgba(${this.cr},${this.cg},${this.cb},${alpha*0.85})`);
@@ -665,7 +640,6 @@ class Quasar {
       ctx.globalCompositeOperation='source-over';
     }
 
-    // compact disk
     ctx.save();
     ctx.scale(1,this.diskFlatten);
     const diskR=r*5.5*fl;
@@ -681,10 +655,9 @@ class Quasar {
     }
     ctx.restore();
 
-    // point-like core
     ctx.beginPath(); ctx.arc(0,0,Math.max(r*0.6,1.2),0,Math.PI*2);
     ctx.fillStyle=`rgba(255,255,255,${Math.min(1,alpha*1.2)})`; ctx.fill();
-    // corona ring
+
     ctx.beginPath(); ctx.arc(0,0,r*1.8,0,Math.PI*2);
     ctx.strokeStyle=`rgba(${this.cr},${this.cg},${this.cb},${alpha*0.45})`; ctx.lineWidth=Math.max(0.5,r*0.12); ctx.stroke();
 
@@ -692,7 +665,6 @@ class Quasar {
   }
 }
 
-// ── ShootingStars ─────────────────────────────────────────────────────────────
 class ShootingStar {
   constructor(){
     const fromTop=Math.random()<0.7;
@@ -731,7 +703,6 @@ class ShootingStar {
   }
 }
 
-// ── Comet ─────────────────────────────────────────────────────────────────────
 class Comet {
   constructor(fresh){ this.reset(fresh); }
   reset(fresh){
@@ -791,22 +762,21 @@ class Comet {
   }
 }
 
-// ── Pulsar ────────────────────────────────────────────────────────────────────
 class Pulsar {
   constructor(fresh){ this.reset(fresh); }
   reset(fresh){
-    // corner bias — pulsary preferują rogi
+
     const cornerX=(Math.random()<0.5?-1:1)*(W*0.25+Math.random()*W*0.35);
     const cornerY=(Math.random()<0.5?-1:1)*(H*0.25+Math.random()*H*0.35);
     this.x3=cornerX; this.y3=cornerY;
     this.z=fresh?250+Math.random()*750:800+Math.random()*300; this.pz=this.z;
     this.speed=0.22+Math.random()*0.3; this.wf=0.25+Math.random()*0.35;
     this.beamAngle=Math.random()*Math.PI*2;
-    // personality — każdy pulsar jest inny
-    this.fastRotator = Math.random()<0.5;  // szybki vs wolny obrót
+
+    this.fastRotator = Math.random()<0.5;
     this.rotSpeed=(this.fastRotator?0.010+Math.random()*0.012:0.002+Math.random()*0.004)*(Math.random()<0.5?1:-1);
-    this.brightness = 0.45+Math.random()*0.55;  // jasność 0.45–1.0
-    this.fastBlink = Math.random()<0.5;          // szybkie vs wolne miganie
+    this.brightness = 0.45+Math.random()*0.55;
+    this.fastBlink = Math.random()<0.5;
     this.phase=Math.random()*Math.PI*2;
     this.phaseSpeed=this.fastBlink?0.010+Math.random()*0.012:0.002+Math.random()*0.005;
     this.fadeAlpha=fresh?1:0; this.dying=false;
@@ -822,7 +792,7 @@ class Pulsar {
     if(this.z<=60&&!this.dying) this.dying=true;
     if(this.dying) this.fadeAlpha=Math.max(0,this.fadeAlpha-FADE_SPEED*dt);
     if(this.z<=5||this.fadeAlpha<=0){
-      // respawn tylko jeśli aktywnych jest < 2
+
       if(pulsars.filter(p=>!p.dying).length<=2) this.reset(false);
       else pulsars.splice(pulsars.indexOf(this),1);
     }
@@ -858,7 +828,6 @@ class Pulsar {
   }
 }
 
-// ── SuperBlackHole ──────────────────────────────────────────────────────────── that one with planets
 const SBH_PLANETS=[
   {cr:220,cg:130,cb:70},{cr:180,cg:215,cb:255},{cr:255,cg:210,cb:130},
   {cr:185,cg:140,cb:255},{cr:80,cg:210,cb:165},{cr:255,cg:85,cb:55},{cr:240,cg:235,cb:200},
@@ -868,7 +837,7 @@ class SuperBlackHole {
   reset(){
     this.x3=(Math.random()-0.5)*W*0.85; this.y3=(Math.random()-0.5)*H*0.85;
     this.z=480+Math.random()*480; this.pz=this.z;
-    this.baseR=18+Math.random()*48;  // losowa kula
+    this.baseR=18+Math.random()*48;
     this.speed=0.006+Math.random()*0.01; this.wf=0.04+Math.random()*0.06;
     this.globalAngle=Math.random()*Math.PI*2;
     this.diskFlatten=0.08+Math.random()*0.18;
@@ -974,7 +943,6 @@ class SuperBlackHole {
   }
 }
 
-// ── Supernova ──────────────────────────────────────────────────────────────
 const SUPERNOVA_COLORS=[
   [255,220,120],[255,180,80],[255,140,60],[255,100,50],
   [200,160,255],[140,200,255],[255,255,200],
@@ -1102,23 +1070,29 @@ class Supernova {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════
-// ── Object arrays & timers ────────────────────────────────────────
-// ══════════════════════════════════════════════════════════════════
 const stars=[],dust=[],nebulae=[],clusters=[],blackHoles=[],galaxies=[],comets=[],pulsars=[];
 const superBHs=[];
 
 const quasars=[];
 let _emptyTimer=0;
-const EMPTY_THRESHOLD=8000;  // 8s empty before quasar spawns
+const EMPTY_THRESHOLD=8000;
 let _quasarOpTimer=0;
-const QUASAR_OP_INTERVAL=90000; // 90s between quasars
+const QUASAR_OP_INTERVAL=90000;
 
 let shootingStars=[],supernovae=[],ssTimer=1200;
-let sbhWaiting=false, sbhNoBHTimer=0;
-const SBH_NO_BH_THRESHOLD=5000; // 5s bez zwykłej BH → może się spawnować SBH
-let sbhGracePeriod=0; // po śmierci SBH BH odczekują 3s
 let snCooldown=0;
+
+const BH_MAX_SLOTS = 4;
+const BH_SLOT_COOLDOWN_MIN = 30000;
+const BH_SLOT_COOLDOWN_MAX = 90000;
+
+const bhSlotCooldowns = Array(BH_MAX_SLOTS).fill(0);
+
+let sbhQueue = 0;
+let sbhRollTimer = 0;
+let sbhGracePeriod = 0;
+
+let _quasarTimer = 0;
 
 function resize(){
   if(!canvas) return;
@@ -1133,31 +1107,34 @@ function init(){
   resize();
   stars.length=dust.length=nebulae.length=clusters.length=0;
   blackHoles.length=galaxies.length=quasars.length=0;
-  superBHs.length=0; sbhWaiting=false; sbhNoBHTimer=0; sbhGracePeriod=0;
+  superBHs.length=0; sbhQueue=0; sbhRollTimer=0; sbhGracePeriod=0;
   supernovae.length=0; snCooldown=8000;
-  _emptyTimer=0; _quasarOpTimer=0;
+  bhSlotCooldowns.fill(0); _quasarTimer=0;
   for(let i=0;i<STAR_COUNT;i++)    stars.push(new Star(true));
   for(let i=0;i<DUST_COUNT;i++)    dust.push(new DustCloud(true));
   for(let i=0;i<NEBULA_COUNT;i++)  nebulae.push(new Nebula(true));
   for(let i=0;i<CLUSTER_COUNT;i++) clusters.push(new StarCluster(true));
+
   blackHoles.push(new BlackHole(true));
   blackHoles.push(new BlackHole(true));
+
+  bhSlotCooldowns[2] = BH_SLOT_COOLDOWN_MIN + Math.random()*(BH_SLOT_COOLDOWN_MAX-BH_SLOT_COOLDOWN_MIN);
+  bhSlotCooldowns[3] = BH_SLOT_COOLDOWN_MIN + Math.random()*(BH_SLOT_COOLDOWN_MAX-BH_SLOT_COOLDOWN_MIN);
   galaxies.push(new Galaxy(true));
   galaxies.push(new Galaxy(true));
   for(let i=0;i<COMET_COUNT;i++)   comets.push(new Comet(true));
-  // quasars start empty — first spawns after 8s idle
-  // max 2 pulsary, 2 zawsze na starcie
+
   pulsars.push(new Pulsar(true)); pulsars.push(new Pulsar(true));
 }
 
 function _majorOnScreen(){
-  // black holes ────────────────────────────────
+
   for(const bh of blackHoles){
     const sc=FOV/Math.max(bh.z,1),ox=pcx(bh.z,bh.wf),oy=pcy(bh.z,bh.wf);
     const x=bh.x3*sc+ox, y=bh.y3*sc+oy, r=bh.baseR*sc;
     if(x>-r&&x<W+r&&y>-r&&y<H+r&&bh.fadeAlpha>0.1) return true;
   }
-  // galaxies ────────────────────────────────
+
   for(const g of galaxies){
     const sc=FOV/Math.max(g.z,1),ox=pcx(g.z,g.wf),oy=pcy(g.z,g.wf);
     const x=g.x3*sc+ox, y=g.y3*sc+oy, r=g.baseR*sc;
@@ -1181,26 +1158,54 @@ function loop(now){
   supernovae=supernovae.filter(sn=>!sn.dead);
   if(snFlash.active){ snFlash.elapsed+=dt; if(snFlash.elapsed>=snFlash.duration) snFlash.active=false; }
   const sbhActive=superBHs.length>0;
-  // SBH spawnuje się gdy nie ma żadnej zwykłej BH na ekranie przez 5s (i brak SBH już)
-  if(!sbhActive){
-    const anyBHVisible=blackHoles.some(bh=>{
-      const _sc=FOV/Math.max(bh.z,1),_ox=pcx(bh.z,bh.wf),_oy=pcy(bh.z,bh.wf);
-      const _x=bh.x3*_sc+_ox,_y=bh.y3*_sc+_oy,_r=bh.baseR*_sc;
-      return _x>-_r&&_x<W+_r&&_y>-_r&&_y<H+_r&&bh.fadeAlpha>0.15;
-    });
-    if(anyBHVisible) sbhNoBHTimer=0;
-    else { sbhNoBHTimer+=dt; if(sbhNoBHTimer>=SBH_NO_BH_THRESHOLD) superBHs.push(new SuperBlackHole()); sbhNoBHTimer=0; }
-  } else sbhNoBHTimer=0;
 
-  // ── Quasar spawn — 1/300 chance per minute, bez SBH, max 1 ──────────
-  if(quasars.length===0&&superBHs.length===0){
-    _quasarOpTimer+=dt;
-    if(_quasarOpTimer>=60000){ // co minutę
-      _quasarOpTimer=0;
-      if(Math.random()<1/300) quasars.push(new Quasar(false,true));
+  for(let i=blackHoles.length-1;i>=0;i--){
+    if(blackHoles[i]._dead){
+      blackHoles.splice(i,1);
+
+      const freeSlot=bhSlotCooldowns.findIndex(c=>c<=0);
+      if(freeSlot>=0)
+        bhSlotCooldowns[freeSlot]=BH_SLOT_COOLDOWN_MIN+Math.random()*(BH_SLOT_COOLDOWN_MAX-BH_SLOT_COOLDOWN_MIN);
     }
-  } else if(quasars.length>0||superBHs.length>0){
-    _quasarOpTimer=0;
+  }
+
+  if(!sbhActive&&sbhGracePeriod<=0){
+    for(let s=0;s<BH_MAX_SLOTS;s++){
+      if(bhSlotCooldowns[s]>0){
+        bhSlotCooldowns[s]-=dt;
+        if(bhSlotCooldowns[s]<=0){
+          bhSlotCooldowns[s]=0;
+
+          if(blackHoles.length<BH_MAX_SLOTS)
+            blackHoles.push(new BlackHole(false));
+        }
+      }
+    }
+  }
+
+  if(!sbhActive){
+    sbhRollTimer+=dt;
+    if(sbhRollTimer>=60000){
+      sbhRollTimer=0;
+      if(Math.random()<1/10) sbhQueue++;
+    }
+
+    if(sbhQueue>0&&blackHoles.length===0){
+      superBHs.push(new SuperBlackHole());
+      sbhQueue--;
+    }
+  } else {
+    sbhRollTimer=0;
+  }
+
+  if(quasars.length===0){
+    _quasarTimer+=dt;
+    if(_quasarTimer>=60000){
+      _quasarTimer=0;
+      if(Math.random()<1/8) quasars.push(new Quasar(false,true));
+    }
+  } else {
+    _quasarTimer=0;
   }
 
   camPhaseLocal+=0.00012*dt;
@@ -1218,7 +1223,7 @@ function loop(now){
 
   ctx.globalAlpha=sceneAlpha;
   drawBand();
-  // Draw quasars first ────────────────────────────────────────────────────────────────────────────────
+
   for(let qi=quasars.length-1;qi>=0;qi--){ quasars[qi].update(dt); quasars[qi].draw(); }
   for(const n of nebulae)   { n.update(dt); n.draw(); }
   for(const cl of clusters)  { cl.update(dt); cl.draw(); }
@@ -1230,7 +1235,13 @@ function loop(now){
   for(const sn of supernovae){ sn.update(dt); sn.draw(); }
   if(sbhActive) sbhGracePeriod=3000;
   else if(sbhGracePeriod>0) sbhGracePeriod-=dt;
-  for(const sbh of superBHs){ sbh.update(dt); sbh.draw(); if(sbh.isDead){ superBHs.splice(superBHs.indexOf(sbh),1); sbhNoBHTimer=0; } }
+  for(let si=superBHs.length-1;si>=0;si--){
+    const sbh=superBHs[si]; sbh.update(dt); sbh.draw();
+    if(sbh.isDead){
+      superBHs.splice(si,1);
+      sbhRollTimer=0;
+    }
+  }
   for(const bh of blackHoles){ bh.update(dt); if(!sbhActive&&sbhGracePeriod<=0) bh.draw(); }
   for(const d of dust)       { d.update(dt); d.draw(); }
   for(const s of stars)      { s.update(dt); s.draw(); }
@@ -1253,7 +1264,7 @@ function loop(now){
       ctx.fillRect(0,0,W,H); ctx.globalAlpha=1;
     }
   }
-} //────────────────────────────────────────────────────────────────────────────────────────────────
+}
 
   function start(){
     if(_running) return;
