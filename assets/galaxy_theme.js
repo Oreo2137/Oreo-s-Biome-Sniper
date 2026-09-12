@@ -1074,10 +1074,6 @@ const stars=[],dust=[],nebulae=[],clusters=[],blackHoles=[],galaxies=[],comets=[
 const superBHs=[];
 
 const quasars=[];
-let _emptyTimer=0;
-const EMPTY_THRESHOLD=8000;
-let _quasarOpTimer=0;
-const QUASAR_OP_INTERVAL=90000;
 
 let shootingStars=[],supernovae=[],ssTimer=1200;
 let snCooldown=0;
@@ -1224,7 +1220,8 @@ function loop(now){
   ctx.globalAlpha=sceneAlpha;
   drawBand();
 
-  for(let qi=quasars.length-1;qi>=0;qi--){ quasars[qi].update(dt); quasars[qi].draw(); }
+  for(let qi=quasars.length-1;qi>=0;qi--) quasars[qi].update(dt);
+  for(let qi=0;qi<quasars.length;qi++) quasars[qi].draw();
   for(const n of nebulae)   { n.update(dt); n.draw(); }
   for(const cl of clusters)  { cl.update(dt); cl.draw(); }
   for(const g of galaxies)   { g.update(dt); g.draw(); }
