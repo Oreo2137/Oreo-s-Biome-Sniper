@@ -28,21 +28,82 @@ const NEBULA_PALETTES = [
 ];
 
 const wind = {x:0,y:0,vx:0,vy:0,tx:0,ty:0,timer:0,period:5000,drift:0};
+
+const cam = {
+  speed:      1.0,
+  targetSpeed:1.0,
+  burstTimer: 0,
+  burstActive:false,
+  burstDuration:0,
+  burstElapsed:0,
+  turnTimer:  0,
+};
+function _scheduleBurst(){
+  cam.burstTimer = 18000 + Math.random()*35000;
+}
+function _scheduleTurn(){
+  cam.turnTimer = 14000 + Math.random()*22000;
+}
+_scheduleBurst();
+_scheduleTurn();
+
+function updateCamSpeed(dt){
+  cam.burstTimer -= dt;
+  if(cam.burstTimer <= 0 && !cam.burstActive){
+    const big = Math.random() < 0.40;
+    cam.targetSpeed   = big ? 7.0 + Math.random()*5.0 : 3.0 + Math.random()*2.0;
+    cam.burstDuration = big ? 6000 + Math.random()*6000 : 5000 + Math.random()*5000;
+    cam.burstElapsed  = 0;
+    cam.burstActive   = true;
+  }
+  if(cam.burstActive){
+    cam.burstElapsed += dt;
+    if(cam.burstElapsed >= cam.burstDuration){
+      cam.burstActive = false;
+      cam.targetSpeed = 1.0;
+      _scheduleBurst();
+    }
+  }
+  const eSpeed = 1 - Math.pow(0.9970, dt);
+  cam.speed += (cam.targetSpeed - cam.speed) * eSpeed;
+
+  cam.turnTimer -= dt;
+  if(cam.turnTimer <= 0){
+    const a = Math.random() * Math.PI * 2;
+    const s = 0.030 + Math.random()*0.055;
+    cam._pendingTurnX = Math.cos(a) * s;
+    cam._pendingTurnY = Math.sin(a) * s;
+    cam._hasPendingTurn = true;
+    _scheduleTurn();
+  }
+}
+
 function updateWind(dt){
-  wind.drift += 0.00004*dt;
+  wind.drift += (Math.sin(wind.drift*0.3)*0.00003 - 0.000015)*dt;
   wind.timer -= dt;
   if(wind.timer<=0){
-    const a=Math.random()*Math.PI*2, s=Math.random()<0.2?0:0.012+Math.random()*0.035;
-    wind.tx = Math.cos(a)*s + Math.cos(wind.drift)*0.007;
-    wind.ty = Math.sin(a)*s*0.5 + Math.sin(wind.drift)*0.004;
-    wind.period = 4000+Math.random()*6000; wind.timer=wind.period;
+    if(cam._hasPendingTurn){
+      wind.tx = cam._pendingTurnX;
+      wind.ty = cam._pendingTurnY;
+      cam._hasPendingTurn = false;
+    } else {
+      const a=Math.random()*Math.PI*2;
+      const baseS = Math.random()<0.15 ? 0 : 0.012+Math.random()*0.030;
+      wind.tx = Math.cos(a)*baseS;
+      wind.ty = Math.sin(a)*baseS;
+    }
+    wind.period = 2500+Math.random()*5000; wind.timer=wind.period;
   }
-  const e=1-Math.pow(0.997,dt);
-  wind.vx+=(wind.tx-wind.vx)*e; wind.vy+=(wind.ty-wind.vy)*e;
-  wind.x+=wind.vx*dt; wind.y+=wind.vy*dt;
-  const md=Math.min(W,H)*0.18;
-  wind.x*=1-Math.pow(0.999,dt)*(Math.abs(wind.x)/md);
-  wind.y*=1-Math.pow(0.999,dt)*(Math.abs(wind.y)/md);
+  const eSmooth = 1-Math.pow(0.9980, dt);
+  wind.vx+=(wind.tx-wind.vx)*eSmooth; wind.vy+=(wind.ty-wind.vy)*eSmooth;
+  const maxDelta = Math.min(W,H)*0.0020;
+  const dx = wind.vx*dt*cam.speed;
+  const dy = wind.vy*dt*cam.speed;
+  wind.x += Math.max(-maxDelta, Math.min(maxDelta, dx));
+  wind.y += Math.max(-maxDelta, Math.min(maxDelta, dy));
+  const md=Math.min(W,H)*0.30;
+  wind.x*=1-Math.pow(0.9995,dt)*(Math.abs(wind.x)/md);
+  wind.y*=1-Math.pow(0.9995,dt)*(Math.abs(wind.y)/md);
 }
 
 const horizon = {
@@ -78,20 +139,21 @@ function updateHorizon(dt){
 }
 
 const mouse={nx:0,ny:0,x:0,y:0};
-window.addEventListener('mousemove',e=>{
+function _onMouseMove(e){
+  if(!W||!H) return;
   mouse.nx=(e.clientX-W*0.5)/(W*0.5);
   mouse.ny=(e.clientY-H*0.5)/(H*0.5);
-});
+}
 function updateMouse(dt){
-  const e=1-Math.pow(0.993,dt);
+  const e=1-Math.pow(0.9985,dt);
   mouse.x+=(mouse.nx-mouse.x)*e; mouse.y+=(mouse.ny-mouse.y)*e;
 }
 
 let camPhase=0;
 function getCamRoll(dt){ camPhase+=0.00012*dt; return Math.sin(camPhase)*0.04+Math.sin(camPhase*0.4)*0.02; }
 let sceneAlpha=0;
-function pcx(z,wf){ return cx + mouse.x*-20*(1-Math.min(z,DEPTH)/DEPTH*0.7)*wf + wind.x*wf; }
-function pcy(z,wf){ return cy + mouse.y*-12*(1-Math.min(z,DEPTH)/DEPTH*0.7)*wf + wind.y*wf; }
+function pcx(z,wf){ return cx + mouse.x*(W*-0.0456)*(1-Math.min(z,DEPTH)/DEPTH*0.7)*wf + wind.x*wf; }
+function pcy(z,wf){ return cy + mouse.y*(H*-0.0285)*(1-Math.min(z,DEPTH)/DEPTH*0.7)*wf + wind.y*wf; }
 const _D={addColorStop(){}};
 function radial(x0,y0,r0,x1,y1,r1){
   if(!isFinite(x0+y0+r0+x1+y1+r1)||r0<0||r1<0) return _D;
@@ -104,7 +166,7 @@ function linear(x0,y0,x1,y1){
 function ok(g){ return g!==_D; }
 
 function drawBand(){
-  const bx=cx+wind.x*0.2+mouse.x*-8, by=cy+wind.y*0.2+mouse.y*-5;
+  const bx=cx+wind.x*0.2+mouse.x*(W*-0.015), by=cy+wind.y*0.2+mouse.y*(H*-0.01);
   const ang=horizon.angle+wind.drift*0.04;
   const bw=Math.max(W,H)*1.8;
   const bh=Math.max(H*0.55,horizon.thickness*1.6);
@@ -192,14 +254,14 @@ class Star {
     this.type=r<0.65?0:r<0.90?1:2;
     this.spikes=this.type===2?4:this.type===1&&Math.random()<0.5?6:0;
     this.size=this.type===2?1.3+Math.random()*0.8:this.type===1?0.8+Math.random()*0.4:0.4+Math.random()*0.3;
-    this.fadeAlpha=fresh?1:0;
+    this.fadeAlpha=fresh?1:Math.max(0, 1-(this.z/DEPTH));
   }
   update(dt){
-    this.pz=this.z; this.z-=this.speed*dt*0.05; this.tp+=this.ts;
+    this.pz=this.z; this.z-=this.speed*dt*0.05*cam.speed; this.tp+=this.ts;
     const zf=1-this.z/DEPTH;
     this.x3+=wind.vx*dt*this.wf*(0.4+zf*1.8)*FOV*0.004;
     this.y3+=wind.vy*dt*this.wf*(0.4+zf*1.8)*FOV*0.004;
-    if(this.fadeAlpha<1) this.fadeAlpha=Math.min(1,this.fadeAlpha+FADE_SPEED*2*dt);
+    if(this.fadeAlpha<1) this.fadeAlpha=Math.min(1,this.fadeAlpha+FADE_SPEED*(2.5+cam.speed*1.5)*dt);
     if(this.z<=1) this.reset(false);
   }
   draw(){
@@ -246,7 +308,7 @@ class Nebula {
   }
   update(dt){
     this.pz=this.z; this.z-=this.speed*dt*0.05; this.pp+=this.ps*dt;
-    if(this.fadeAlpha<1) this.fadeAlpha=Math.min(1,this.fadeAlpha+FADE_SPEED*0.6*dt);
+    if(this.fadeAlpha<1) this.fadeAlpha=Math.min(1,this.fadeAlpha+FADE_SPEED*0.9*dt);
     if(this.z<=80) this.fadeAlpha=Math.max(0,this.fadeAlpha-FADE_SPEED*1.5*dt);
     if(this.z<=5) this.reset(false);
   }
@@ -255,8 +317,7 @@ class Nebula {
     const ox=pcx(this.z,this.wf), oy=pcy(this.z,this.wf);
     const sc=FOV/this.z;
     const x=this.x3*sc+ox, y=this.y3*sc+oy;
-    const pulse=1+0.05*Math.sin(this.pp);
-    const r=this.baseR*sc*pulse;
+    const r=this.baseR*sc;
     if(!isFinite(x+y+r)||r<2||x<-r||x>W+r||y<-r||y>H+r) return;
     const prox=Math.max(0,1-this.z/DEPTH);
     const a=this.alpha*Math.min(1,prox*2.5)*this.fadeAlpha;
@@ -376,10 +437,9 @@ class BlackHole {
     this.speed=0.06+Math.random()*0.1;
     this.wf=0.1+Math.random()*0.15;
     this.globalAngle=Math.random()*Math.PI*2;
-
-    this.diskFlatten=0.10+Math.random()*0.20;
+    this.diskFlatten=0.08+Math.random()*0.38;
     this.pulse=Math.random()*Math.PI*2; this.pulseSpeed=0.0008+Math.random()*0.001;
-    this.fadeAlpha=fresh?1:0; this.dying=false;
+    this.fadeAlpha=fresh?1:0; this.dying=false; this._dead=false;
   }
   update(dt){
     this.pz=this.z; this.z-=this.speed*dt*0.05;
@@ -393,10 +453,11 @@ class BlackHole {
       const _sc=FOV/Math.max(this.z,1),_ox=pcx(this.z,this.wf),_oy=pcy(this.z,this.wf);
       const _x=this.x3*_sc+_ox,_y=this.y3*_sc+_oy,_r=this.baseR*_sc;
       const offscreen=_x<-_r*2||_x>W+_r*2||_y<-_r*2||_y>H+_r*2;
-      if(this.z<=100||offscreen) this.dying=true;
+      if(this.z<=220||offscreen) this.dying=true;
     }
-    if(this.dying) this.fadeAlpha=Math.max(0,this.fadeAlpha-FADE_SPEED*0.45*dt);
-    if(this.z<=5||this.fadeAlpha<=0) this._dead=true;
+    const fadeRate = FADE_SPEED * (0.45 + cam.speed * 0.08);
+    if(this.dying) this.fadeAlpha=Math.max(0,this.fadeAlpha-fadeRate*dt);
+    if(this.fadeAlpha<=0) this._dead=true;
   }
   draw(){
     if(!isFinite(this.z)||this.z<=0||this.fadeAlpha<0.01) return;
@@ -435,14 +496,13 @@ class BlackHole {
       ctx.globalCompositeOperation='source-over';
     }
 
-    
     ctx.save();
     ctx.scale(1,this.diskFlatten);
     const diskR=r*this.diskRMult*fl;
     const dg=ctx.createRadialGradient(0,0,r*0.92,0,0,diskR);
     dg.addColorStop(0,    `rgba(255,255,210,${alpha*0.98})`);
     dg.addColorStop(0.06, `rgba(255,230,100,${alpha*0.92})`);
-    dg.addColorStop(0.16, `rgba(255,150,20,${alpha*0.75})`);  
+    dg.addColorStop(0.16, `rgba(255,150,20,${alpha*0.75})`);
     dg.addColorStop(0.32, `rgba(255,80,10,${alpha*0.50})`);
     dg.addColorStop(0.55, `rgba(180,30,0,${alpha*0.22})`);
     dg.addColorStop(1,    `rgba(40,0,0,0)`);
@@ -474,8 +534,8 @@ class Galaxy {
     this.baseR=55+Math.random()*95; this.speed=0.04+Math.random()*0.07;
     this.wf=0.08+Math.random()*0.12;
     this.tilt=0.2+Math.random()*0.5; this.viewAngle=Math.random()*Math.PI*2;
-    this.spinAngle=0;
-    this.spinSpeed=(0.00003+Math.random()*0.00004)*(Math.random()<0.5?1:-1);
+    this.spinAngle=Math.random()*Math.PI*2;
+    this.spinSpeed=(0.00003+Math.random()*0.00007)*(Math.random()<0.5?1:-1);
     this.arms=Math.random()<0.5?2:3;
     const warm=Math.random()<0.5;
     this.cR=warm?255:200; this.cG=warm?240:220; this.cB=warm?180:255;
@@ -543,123 +603,183 @@ class Galaxy {
     ctx.save(); ctx.translate(x,y); ctx.rotate(this.viewAngle+this.spinAngle);
     ctx.scale(1,this.tilt); ctx.globalAlpha=a;
     ctx.globalCompositeOperation='screen';
-
     ctx.drawImage(this._cv,-ds/2,-ds/2,ds,ds);
     ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1; ctx.restore();
   }
 }
 
-class Quasar {
-  constructor(fresh, opportunistic){ this.reset(fresh, opportunistic); }
-  reset(fresh, opportunistic){
-    const sp=safePos(quasars,W*1.7,H*1.7,W*0.30);
+class QuasarGalaxy {
+  constructor(){ this.reset(); }
+  reset(){
+    const sp=safePos(quasars,W*1.7,H*1.7,W*0.35);
     this.x3=sp.x3; this.y3=sp.y3;
-
-    this.z=fresh?600+Math.random()*550:900+Math.random()*200; this.pz=this.z;
-    this.baseR=5+Math.random()*9;
-    this.speed=0.015+Math.random()*0.025;
-    this.wf=0.05+Math.random()*0.08;
-    this.globalAngle=Math.random()*Math.PI*2;
-    this.diskFlatten=0.10+Math.random()*0.18;
+    // daleko — duże z, bardzo wolno się zbliża
+    this.z=1000+Math.random()*150; this.pz=this.z;
+    this.baseR=22+Math.random()*18;
+    this.speed=0.0018+Math.random()*0.002; // bardzo wolny drift z
+    this.wf=0.008+Math.random()*0.012;
+    this.driftAngle=Math.random()*Math.PI*2;
+    this.driftSpeed=0.0002+Math.random()*0.0002;
     this.pulse=Math.random()*Math.PI*2;
-    this.pulseSpeed=0.0012+Math.random()*0.0018;
-   
-    if(Math.random()<0.8){ this.cr=140; this.cg=200; this.cb=255; }
-    else                  { this.cr=255; this.cg=160; this.cb=80;  }
+    this.pulseSpeed=0.0010+Math.random()*0.0015;
+    this.globalAngle=Math.random()*Math.PI*2;
+    this.diskFlatten=0.10+Math.random()*0.20;
+    // ramiona galaktyki — obrót
+    this.spinAngle=Math.random()*Math.PI*2;
+    this.spinSpeed=(0.000025+Math.random()*0.000035)*(Math.random()<0.5?1:-1);
+    this.arms=Math.random()<0.5?2:3;
+    // kolor niebieski jak kwazar
+    this.cr=60+Math.floor(Math.random()*40);
+    this.cg=140+Math.floor(Math.random()*60);
+    this.cb=255;
+    // czas życia: losowo od 60s do 240s (4 minuty)
+    this.maxLife=60000+Math.random()*180000;
+    this.lifeTime=0;
     this.fadeAlpha=0; this.dying=false;
-    this.opportunistic = !!opportunistic;
+    this._buildArms();
+  }
+  _buildArms(){
+    const sz=512, oc=document.createElement('canvas');
+    oc.width=oc.height=sz;
+    const ot=oc.getContext('2d'), cx2=sz/2, cy2=sz/2, mR=sz*0.46;
+    const cr=this.cr, cg=this.cg, cb=this.cb;
+    // poświata centralna
+    const bg=ot.createRadialGradient(cx2,cy2,0,cx2,cy2,mR*0.38);
+    bg.addColorStop(0,`rgba(${cr},${cg},${cb},0.45)`);
+    bg.addColorStop(0.45,`rgba(${cr},${cg},${cb},0.15)`);
+    bg.addColorStop(1,`rgba(${cr},${cg},${cb},0)`);
+    ot.beginPath(); ot.arc(cx2,cy2,mR*0.38,0,Math.PI*2); ot.fillStyle=bg; ot.fill();
+    // białe centrum
+    const cg2=ot.createRadialGradient(cx2,cy2,0,cx2,cy2,mR*0.14);
+    cg2.addColorStop(0,'rgba(255,255,255,1)');
+    cg2.addColorStop(0.2,'rgba(255,255,255,0.9)');
+    cg2.addColorStop(0.5,`rgba(${cr},${cg},${cb},0.7)`);
+    cg2.addColorStop(1,`rgba(${cr},${cg},${cb},0)`);
+    ot.beginPath(); ot.arc(cx2,cy2,mR*0.14,0,Math.PI*2); ot.fillStyle=cg2; ot.fill();
+    // ramiona galaktyki
+    ot.globalCompositeOperation='screen';
+    for(let i=0;i<1800;i++){
+      const t=Math.random(), arm=Math.floor(Math.random()*this.arms);
+      const theta=t*Math.PI*3.5+(arm/this.arms)*Math.PI*2;
+      const rr=t*mR, sp2=(0.08+t*0.22)*mR;
+      const px=cx2+Math.cos(theta)*rr+(Math.random()-0.5)*sp2;
+      const py=cy2+Math.sin(theta)*rr+(Math.random()-0.5)*sp2*0.5;
+      const br=Math.pow(1-t,0.6), a=br*(0.45+Math.random()*0.55);
+      const dr=0.7+Math.random()*2.0*br;
+      const dg=ot.createRadialGradient(px,py,0,px,py,dr*1.4);
+      dg.addColorStop(0,`rgba(${cr},${cg},${cb},${a})`);
+      dg.addColorStop(1,`rgba(${cr},${cg},${cb},0)`);
+      ot.beginPath(); ot.arc(px,py,dr*1.4,0,Math.PI*2);
+      ot.fillStyle=dg; ot.fill();
+    }
+    ot.globalCompositeOperation='source-over';
+    this._cv=oc;
   }
   update(dt){
     this.pz=this.z; this.z-=this.speed*dt*0.05;
-    const zf=1-this.z/DEPTH;
-    this.x3+=wind.vx*dt*this.wf*(0.2+zf)*FOV*0.002;
-    this.y3+=wind.vy*dt*this.wf*(0.2+zf)*FOV*0.002;
+    this.lifeTime+=dt;
+    this.driftAngle+=0.000012*dt;
+    this.x3+=Math.cos(this.driftAngle)*this.driftSpeed*dt;
+    this.y3+=Math.sin(this.driftAngle)*this.driftSpeed*dt;
+    this.x3+=wind.vx*dt*this.wf*FOV*0.001;
+    this.y3+=wind.vy*dt*this.wf*FOV*0.001;
     this.pulse+=this.pulseSpeed*dt;
-    if(!this.dying&&this.fadeAlpha<0.85) this.fadeAlpha=Math.min(0.85,this.fadeAlpha+FADE_SPEED*0.2*dt);
-    if(this.z<=150&&!this.dying) this.dying=true;
-    if(this.dying) this.fadeAlpha=Math.max(0,this.fadeAlpha-FADE_SPEED*0.3*dt);
-    if(this.z<=5||this.fadeAlpha<=0){ quasars.splice(quasars.indexOf(this),1); }
+    this.spinAngle+=this.spinSpeed*dt;
+    if(!this.dying&&this.fadeAlpha<0.88) this.fadeAlpha=Math.min(0.88,this.fadeAlpha+FADE_SPEED*0.18*dt);
+    if((this.lifeTime>=this.maxLife||this.z<=180)&&!this.dying) this.dying=true;
+    if(this.dying) this.fadeAlpha=Math.max(0,this.fadeAlpha-FADE_SPEED*0.25*dt);
+    if(this.fadeAlpha<=0||this.z<=5){ quasars.splice(quasars.indexOf(this),1); }
   }
-
   isOnScreen(){
     if(!isFinite(this.z)||this.z<=0||this.fadeAlpha<0.01) return false;
     const sc=FOV/this.z;
     const x=this.x3*sc+cx, y=this.y3*sc+cy;
-    const r=this.baseR*sc*8;
+    const r=this.baseR*sc*12;
     return x>-r&&x<W+r&&y>-r&&y<H+r;
   }
   draw(){
-    if(!isFinite(this.z)||this.z<=0||this.fadeAlpha<0.01) return;
-    const ox=pcx(this.z,this.wf),oy=pcy(this.z,this.wf);
+    if(!isFinite(this.z)||this.z<=0||this.fadeAlpha<0.01||!this._cv) return;
+    const ox=pcx(this.z,this.wf), oy=pcy(this.z,this.wf);
     const sc=FOV/this.z;
     const x=this.x3*sc+ox, y=this.y3*sc+oy;
     const r=this.baseR*sc;
-    if(!isFinite(x+y+r)||r<0.5||x<-r*10||x>W+r*10||y<-r*10||y>H+r*10) return;
+    if(!isFinite(x+y+r)||r<1||x<-r*16||x>W+r*16||y<-r*16||y>H+r*16) return;
     const prox=Math.max(0,1-this.z/DEPTH);
-    const alpha=Math.min(1,prox*4)*this.fadeAlpha;
-    if(alpha<0.015) return;
-    const fl=1+0.06*Math.sin(this.pulse);
+    const alpha=Math.min(1,prox*4.5)*this.fadeAlpha;
+    if(alpha<0.01) return;
+    const fl=1+0.04*Math.sin(this.pulse);
+    const {cr,cg,cb}=this;
 
-    const haloR=r*22*fl;
-    const hg=radial(x,y,r*0.5,x,y,haloR);
+    // halo zewnętrzne
+    const haloR=r*30*fl;
+    const hg=radial(x,y,r,x,y,haloR);
     if(ok(hg)){
-      hg.addColorStop(0,   `rgba(${this.cr},${this.cg},${this.cb},${alpha*0.55})`);
-      hg.addColorStop(0.12,`rgba(${this.cr},${this.cg},${this.cb},${alpha*0.28})`);
-      hg.addColorStop(0.35,`rgba(${this.cr},${this.cg},${this.cb},${alpha*0.10})`);
-      hg.addColorStop(1,   `rgba(${this.cr},${this.cg},${this.cb},0)`);
+      hg.addColorStop(0,   `rgba(${cr},${cg},${cb},${alpha*0.45})`);
+      hg.addColorStop(0.10,`rgba(${cr},${cg},${cb},${alpha*0.18})`);
+      hg.addColorStop(0.35,`rgba(${cr},${cg},${cb},${alpha*0.05})`);
+      hg.addColorStop(1,   `rgba(${cr},${cg},${cb},0)`);
       ctx.beginPath(); ctx.arc(x,y,haloR,0,Math.PI*2);
       ctx.fillStyle=hg; ctx.globalCompositeOperation='screen'; ctx.fill();
       ctx.globalCompositeOperation='source-over';
     }
 
+    // ramiona galaktyki (offscreen canvas)
+    const gSize=r*2*8;
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(this.spinAngle);
+    ctx.scale(1, 0.35+this.diskFlatten);
+    ctx.globalAlpha=alpha*0.70;
+    ctx.globalCompositeOperation='screen';
+    ctx.drawImage(this._cv,-gSize/2,-gSize/2,gSize,gSize);
+    ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1;
+    ctx.restore();
+
+    // dysk akrecji (niebieski)
     ctx.save();
     ctx.translate(x,y);
     ctx.rotate(this.globalAngle);
-
-    const jl=r*40*fl;
-    for(const sign of [1,-1]){
-
-      const jg=linear(0,0,0,sign*jl);
-      if(ok(jg)){
-        jg.addColorStop(0,  `rgba(${this.cr},${this.cg},${this.cb},${alpha*0.85})`);
-        jg.addColorStop(0.12,`rgba(${this.cr},${this.cg},${this.cb},${alpha*0.55})`);
-        jg.addColorStop(0.45,`rgba(${this.cr},${this.cg},${this.cb},${alpha*0.18})`);
-        jg.addColorStop(1,  `rgba(${this.cr},${this.cg},${this.cb},0)`);
-        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,sign*jl);
-        ctx.strokeStyle=jg; ctx.lineWidth=Math.max(0.5,r*0.55);
-        ctx.globalCompositeOperation='screen'; ctx.stroke();
-      }
-      const jg2=linear(0,0,0,sign*jl*0.7);
-      if(ok(jg2)){
-        jg2.addColorStop(0, `rgba(${this.cr},${this.cg},${this.cb},${alpha*0.25})`);
-        jg2.addColorStop(1, `rgba(${this.cr},${this.cg},${this.cb},0)`);
-        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,sign*jl*0.7);
-        ctx.strokeStyle=jg2; ctx.lineWidth=r*2.5;
-        ctx.stroke();
-      }
-      ctx.globalCompositeOperation='source-over';
-    }
-
     ctx.save();
     ctx.scale(1,this.diskFlatten);
-    const diskR=r*5.5*fl;
-    const dg=radial(0,0,r*0.6,0,0,diskR);
-    if(ok(dg)){
-      dg.addColorStop(0,   `rgba(255,255,255,${alpha*0.95})`);
-      dg.addColorStop(0.08,`rgba(${this.cr},${this.cg},${this.cb},${alpha*0.85})`);
-      dg.addColorStop(0.30,`rgba(${Math.floor(this.cr*0.7)},${Math.floor(this.cg*0.5)},${Math.floor(this.cb*0.3)},${alpha*0.35})`);
-      dg.addColorStop(1,   `rgba(0,0,0,0)`);
-      ctx.beginPath(); ctx.arc(0,0,diskR,0,Math.PI*2);
-      ctx.fillStyle=dg; ctx.globalCompositeOperation='screen'; ctx.fill();
-      ctx.globalCompositeOperation='source-over';
-    }
+    const diskR=r*this.diskFlatten*42*fl;
+    const dg=ctx.createRadialGradient(0,0,r*0.90,0,0,diskR);
+    dg.addColorStop(0,    `rgba(255,255,255,${alpha*0.98})`);
+    dg.addColorStop(0.06, `rgba(${cr},${Math.min(255,cg+60)},${cb},${alpha*0.90})`);
+    dg.addColorStop(0.18, `rgba(${cr},${cg},${cb},${alpha*0.65})`);
+    dg.addColorStop(0.40, `rgba(${Math.max(0,cr-30)},${Math.max(0,cg-40)},${cb},${alpha*0.30})`);
+    dg.addColorStop(0.70, `rgba(0,30,${cb},${alpha*0.10})`);
+    dg.addColorStop(1,    `rgba(0,0,40,0)`);
+    ctx.beginPath(); ctx.arc(0,0,diskR,0,Math.PI*2);
+    ctx.fillStyle=dg; ctx.globalCompositeOperation='screen'; ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+    // pierścień
+    ctx.beginPath(); ctx.arc(0,0,r*1.25,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(${cr},${Math.min(255,cg+80)},${cb},${alpha*0.65})`; ctx.lineWidth=r*0.16; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,0,r*2.1,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(${cr},${cg},${cb},${alpha*0.18})`; ctx.lineWidth=r*0.07; ctx.stroke();
     ctx.restore();
 
-    ctx.beginPath(); ctx.arc(0,0,Math.max(r*0.6,1.2),0,Math.PI*2);
-    ctx.fillStyle=`rgba(255,255,255,${Math.min(1,alpha*1.2)})`; ctx.fill();
+    // jety (niebieskie, jak kwazar)
+    const bp=0.5+0.5*Math.abs(Math.sin(this.pulse*1.3));
+    const jl=r*20*fl;
+    for(const sign of [1,-1]){
+      const jgC=linear(0,0,0,sign*jl);
+      if(ok(jgC)){
+        jgC.addColorStop(0,   `rgba(255,255,255,${alpha*bp*0.85})`);
+        jgC.addColorStop(0.08,`rgba(${cr},${cg},${cb},${alpha*bp*0.65})`);
+        jgC.addColorStop(0.35,`rgba(${cr},${cg},${cb},${alpha*bp*0.25})`);
+        jgC.addColorStop(1,   `rgba(${cr},${cg},${cb},0)`);
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,sign*jl);
+        ctx.strokeStyle=jgC; ctx.lineWidth=Math.max(0.8,r*0.28);
+        ctx.globalCompositeOperation='screen'; ctx.stroke();
+        ctx.globalCompositeOperation='source-over';
+      }
+    }
 
-    ctx.beginPath(); ctx.arc(0,0,r*1.8,0,Math.PI*2);
-    ctx.strokeStyle=`rgba(${this.cr},${this.cg},${this.cb},${alpha*0.45})`; ctx.lineWidth=Math.max(0.5,r*0.12); ctx.stroke();
+    // czarna dziura — czarne koło + niebieski ring
+    ctx.beginPath(); ctx.arc(0,0,r*0.82,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill();
+    ctx.beginPath(); ctx.arc(0,0,r*0.82,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(${cr},${cg},${cb},${alpha*0.60})`; ctx.lineWidth=Math.max(1,r*0.09); ctx.stroke();
 
     ctx.restore();
   }
@@ -765,14 +885,12 @@ class Comet {
 class Pulsar {
   constructor(fresh){ this.reset(fresh); }
   reset(fresh){
-
     const cornerX=(Math.random()<0.5?-1:1)*(W*0.25+Math.random()*W*0.35);
     const cornerY=(Math.random()<0.5?-1:1)*(H*0.25+Math.random()*H*0.35);
     this.x3=cornerX; this.y3=cornerY;
     this.z=fresh?250+Math.random()*750:800+Math.random()*300; this.pz=this.z;
     this.speed=0.22+Math.random()*0.3; this.wf=0.25+Math.random()*0.35;
     this.beamAngle=Math.random()*Math.PI*2;
-
     this.fastRotator = Math.random()<0.5;
     this.rotSpeed=(this.fastRotator?0.010+Math.random()*0.012:0.002+Math.random()*0.004)*(Math.random()<0.5?1:-1);
     this.brightness = 0.45+Math.random()*0.55;
@@ -792,8 +910,7 @@ class Pulsar {
     if(this.z<=60&&!this.dying) this.dying=true;
     if(this.dying) this.fadeAlpha=Math.max(0,this.fadeAlpha-FADE_SPEED*dt);
     if(this.z<=5||this.fadeAlpha<=0){
-
-      if(pulsars.filter(p=>!p.dying).length<=2) this.reset(false);
+      if(pulsars.filter(p=>!p.dying).length<(window._pulsarTarget||1)) this.reset(false);
       else pulsars.splice(pulsars.indexOf(this),1);
     }
   }
@@ -1101,6 +1218,7 @@ function resize(){
 
 function init(){
   resize();
+  if(W<10||H<10){ console.warn('[galaxyBg] init() called with invalid dimensions W='+W+' H='+H); return; }
   stars.length=dust.length=nebulae.length=clusters.length=0;
   blackHoles.length=galaxies.length=quasars.length=0;
   superBHs.length=0; sbhQueue=0; sbhRollTimer=0; sbhGracePeriod=0;
@@ -1120,17 +1238,21 @@ function init(){
   galaxies.push(new Galaxy(true));
   for(let i=0;i<COMET_COUNT;i++)   comets.push(new Comet(true));
 
-  pulsars.push(new Pulsar(true)); pulsars.push(new Pulsar(true));
+  let _pCount=1;
+  if(Math.random()<0.50) _pCount=2;
+  if(Math.random()<0.30) _pCount=3;
+  if(Math.random()<0.10) _pCount=4;
+  if(Math.random()<0.05) _pCount=5;
+  window._pulsarTarget=_pCount;
+  for(let i=0;i<_pCount;i++) pulsars.push(new Pulsar(true));
 }
 
 function _majorOnScreen(){
-
   for(const bh of blackHoles){
     const sc=FOV/Math.max(bh.z,1),ox=pcx(bh.z,bh.wf),oy=pcy(bh.z,bh.wf);
     const x=bh.x3*sc+ox, y=bh.y3*sc+oy, r=bh.baseR*sc;
     if(x>-r&&x<W+r&&y>-r&&y<H+r&&bh.fadeAlpha>0.1) return true;
   }
-
   for(const g of galaxies){
     const sc=FOV/Math.max(g.z,1),ox=pcx(g.z,g.wf),oy=pcy(g.z,g.wf);
     const x=g.x3*sc+ox, y=g.y3*sc+oy, r=g.baseR*sc;
@@ -1139,13 +1261,55 @@ function _majorOnScreen(){
   return false;
 }
 
+const bgMood = {
+  r:0, g:0, b:0,
+  tr:0, tg:0, tb:0,
+  timer:0,
+};
+function _pickBgMood(){
+  const palettes = [
+    [0,0,0],
+    [4,0,12],
+    [0,6,18],
+    [0,14,10],
+    [12,0,8],
+    [6,3,0],
+    [0,4,20],
+    [8,0,16],
+    [2,8,4],
+    [14,4,0],
+  ];
+  const p = palettes[Math.floor(Math.random()*palettes.length)];
+  bgMood.tr = p[0]; bgMood.tg = p[1]; bgMood.tb = p[2];
+  bgMood.timer = 25000 + Math.random()*45000;
+}
+_pickBgMood();
+function updateBgMood(dt){
+  bgMood.timer -= dt;
+  if(bgMood.timer <= 0) _pickBgMood();
+  const e = 1-Math.pow(0.9998, dt);
+  bgMood.r += (bgMood.tr - bgMood.r)*e;
+  bgMood.g += (bgMood.tg - bgMood.g)*e;
+  bgMood.b += (bgMood.tb - bgMood.b)*e;
+}
+
+const camRoll = { phase: 0 };
+function updateCamRoll(dt){
+  camRoll.phase += 0.00010 * dt;
+}
+function getCamRollValue(){
+  return Math.sin(camRoll.phase)*0.030
+       + Math.sin(camRoll.phase*0.37)*0.015;
+}
+
 let last=-1, camPhaseLocal=0;
 function loop(now){
   if(!_running) return;
   _raf=requestAnimationFrame(loop);
   if(last<0) last=now;
   const dt=Math.min(now-last,50); last=now;
-  updateWind(dt); updateMouse(dt); updateHorizon(dt);
+  updateCamSpeed(dt);
+  updateWind(dt); updateMouse(dt); updateHorizon(dt); updateBgMood(dt);
   ssTimer-=dt; if(ssTimer<=0){ shootingStars.push(new ShootingStar()); ssTimer=2500+Math.random()*4500; }
   snCooldown-=dt;
   if(snCooldown<=0&&supernovae.filter(sn=>!sn.dead).length===0&&Math.random()<0.01){
@@ -1158,7 +1322,6 @@ function loop(now){
   for(let i=blackHoles.length-1;i>=0;i--){
     if(blackHoles[i]._dead){
       blackHoles.splice(i,1);
-
       const freeSlot=bhSlotCooldowns.findIndex(c=>c<=0);
       if(freeSlot>=0)
         bhSlotCooldowns[freeSlot]=BH_SLOT_COOLDOWN_MIN+Math.random()*(BH_SLOT_COOLDOWN_MAX-BH_SLOT_COOLDOWN_MIN);
@@ -1171,7 +1334,6 @@ function loop(now){
         bhSlotCooldowns[s]-=dt;
         if(bhSlotCooldowns[s]<=0){
           bhSlotCooldowns[s]=0;
-
           if(blackHoles.length<BH_MAX_SLOTS)
             blackHoles.push(new BlackHole(false));
         }
@@ -1185,7 +1347,6 @@ function loop(now){
       sbhRollTimer=0;
       if(Math.random()<1/10) sbhQueue++;
     }
-
     if(sbhQueue>0&&blackHoles.length===0){
       superBHs.push(new SuperBlackHole());
       sbhQueue--;
@@ -1198,22 +1359,28 @@ function loop(now){
     _quasarTimer+=dt;
     if(_quasarTimer>=60000){
       _quasarTimer=0;
-      if(Math.random()<1/8) quasars.push(new Quasar(false,true));
+      const bhCount=blackHoles.filter(bh=>!bh._dead&&!bh.dying).length;
+      const activeSBH=superBHs.length>0;
+      const manyPulsars=pulsars.filter(p=>!p.dying).length>3;
+      const boosted=activeSBH||manyPulsars;
+      const chance=boosted?(1/100):(1/300);
+      if(bhCount<=2&&Math.random()<chance) quasars.push(new QuasarGalaxy());
     }
   } else {
     _quasarTimer=0;
   }
 
-  camPhaseLocal+=0.00012*dt;
-  const roll=Math.sin(camPhaseLocal)*0.038+Math.sin(camPhaseLocal*0.41)*0.018+mouse.x*0.015;
+  updateCamRoll(dt);
+  const roll=getCamRollValue();
   sceneAlpha=Math.min(1,sceneAlpha+dt/3500);
 
-  ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+  const br=Math.round(bgMood.r), bg2=Math.round(bgMood.g), bb=Math.round(bgMood.b);
+  ctx.fillStyle=`rgb(${br},${bg2},${bb})`; ctx.fillRect(0,0,W,H);
 
   ctx.save();
   try {
   ctx.translate(cx,cy); ctx.rotate(roll); ctx.translate(-cx,-cy);
-  ctx.fillStyle='#000';
+  ctx.fillStyle=`rgb(${br},${bg2},${bb})`;
   const pad=Math.ceil(Math.max(W,H)*0.05);
   ctx.fillRect(-pad,-pad,W+pad*2,H+pad*2);
 
@@ -1269,14 +1436,34 @@ function loop(now){
     if(!canvas){ console.warn('galaxy-bg-canvas not found'); return; }
     canvas.style.display='block';
     ctx=canvas.getContext('2d');
+    var _safeStartAttempts=0;
     function safeStart(){
       var w=window.innerWidth||document.documentElement.clientWidth||0;
       var h=window.innerHeight||document.documentElement.clientHeight||0;
-      if(w<10||h<10){ requestAnimationFrame(safeStart); return; }
+      var cw=canvas.offsetWidth||canvas.clientWidth||w;
+      var ch=canvas.offsetHeight||canvas.clientHeight||h;
+      if(w<10||h<10||cw<10||ch<10){
+        _safeStartAttempts++;
+        requestAnimationFrame(safeStart);
+        return;
+      }
       resize();
+      if(W<10||H<10){
+        if(_safeStartAttempts<30){ _safeStartAttempts++; requestAnimationFrame(safeStart); return; }
+        console.warn('[galaxyBg] could not get valid dimensions after 30 frames, aborting');
+        return;
+      }
       sceneAlpha=0;
       window.addEventListener('resize',resize);
+      window.addEventListener('mousemove',_onMouseMove);
       init();
+      if(stars.length===0||nebulae.length===0||galaxies.length===0){
+        console.warn('[galaxyBg] init() produced empty arrays (W='+W+' H='+H+'), retrying...');
+        stars.length=dust.length=nebulae.length=clusters.length=0;
+        blackHoles.length=galaxies.length=quasars.length=0;
+        superBHs.length=0; comets.length=0; pulsars.length=0;
+        init();
+      }
       _running=true;
       requestAnimationFrame(function(now){ last=now; requestAnimationFrame(loop); });
     }
@@ -1288,6 +1475,8 @@ function loop(now){
     _running=false; last=-1;
     if(_raf){ cancelAnimationFrame(_raf); _raf=null; }
     window.removeEventListener('resize',resize);
+    window.removeEventListener('mousemove',_onMouseMove);
+    mouse.nx=0; mouse.ny=0; mouse.x=0; mouse.y=0;
     var c=document.getElementById('galaxy-bg-canvas');
     if(c){ c.style.display='none'; var ct=c.getContext('2d'); ct.clearRect(0,0,c.width,c.height); }
   }
