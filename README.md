@@ -44,7 +44,7 @@
 - Automatic update notifications
 - Multi webhook support
 - Snipe history with reaction time and join latency columns
-- Custome biome creation and support 
+- Custome biome creation and support with verification
 - Per-biome keywords, Custom keywords, keyword blacklist
 - Roblox watchdog (auto-relaunches if Roblox closes)
 - Autostart timer and idle start reminder
