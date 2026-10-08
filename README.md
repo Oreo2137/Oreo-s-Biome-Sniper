@@ -23,6 +23,12 @@
 ## Screenshots
 
 <div align="center">
+ 
+> Screenshots may be different from the final version
+
+</div>
+
+<div align="center">
 
 <img src="https://raw.githubusercontent.com/Oreo2137/Oreo-s-Biome-Sniper/main/main.png" width="800" alt="Main tab">
 <br><br>
@@ -58,8 +64,6 @@
 ## Download
 
 Go to [**Releases**](../../releases) and download the latest `Oreo's Biome Sniper.exe`.
-
-Place `sniper.png` in the same folder as the `.exe` to show the app icon in notifications.
 
 ---
 
@@ -110,7 +114,7 @@ Misc-tier biomes do not trigger the lock screen by default.
 
 | Key | Action |
 |-----|--------|
-| `F1` | Start / Stop |
+| `F1` | Start |
 | `F2` | Stop |
 | `F3` | Unlock |
 | `F4` | Pause |
