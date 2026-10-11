@@ -7,7 +7,7 @@ window.galaxyBg = (function(){
 const FOV          = 500;
 const DEPTH        = 1200;
 const STAR_COUNT   = 420;
-const DUST_COUNT   = 160;
+const DUST_COUNT   = Math.max(60, Math.min(140, Math.round((window.innerWidth||1920)*(window.innerHeight||1080)/14400)));
 const NEBULA_COUNT = 14;
 const CLUSTER_COUNT= 4;
 const COMET_COUNT  = 2;
@@ -234,9 +234,9 @@ function safePos(arr,rangeX,rangeY,minDist,tries=12){
   for(let i=0;i<tries;i++){
     const x3=(Math.random()-0.5)*rangeX;
     const y3=(Math.random()-0.5)*rangeY;
-    if(spawnFarEnough(arr,x3,y3,minDist)) return {x3,y3};
+    if(spawnFarEnough(arr,x3,y3,minDist)) return {x3,y3,ok:true};
   }
-  return {x3:(Math.random()-0.5)*rangeX, y3:(Math.random()-0.5)*rangeY};
+  return {x3:(Math.random()-0.5)*rangeX, y3:(Math.random()-0.5)*rangeY, ok:false};
 }
 
 class Star {
@@ -249,7 +249,7 @@ class Star {
     this.z=fresh?Math.random()*DEPTH:DEPTH; this.pz=this.z;
     this.wf=0.5+Math.random()*0.8;
     this.speed=1.5+Math.random()*3;
-    this.tp=Math.random()*Math.PI*2; this.ts=0.015+Math.random()*0.04;
+    this.tp=Math.random()*Math.PI*2; this.ts=0.015+Math.random()*0.04; this.tp2=Math.random()*Math.PI*2; this.ts2=0.002+Math.random()*0.008;
     const r=Math.random();
     this.type=r<0.65?0:r<0.90?1:2;
     this.spikes=this.type===2?4:this.type===1&&Math.random()<0.5?6:0;
@@ -257,7 +257,7 @@ class Star {
     this.fadeAlpha=fresh?1:Math.max(0, 1-(this.z/DEPTH));
   }
   update(dt){
-    this.pz=this.z; this.z-=this.speed*dt*0.05*cam.speed; this.tp+=this.ts;
+    this.pz=this.z; this.z-=this.speed*dt*0.05*cam.speed; this.tp+=this.ts; this.tp2+=this.ts2;
     const zf=1-this.z/DEPTH;
     this.x3+=wind.vx*dt*this.wf*(0.4+zf*1.8)*FOV*0.004;
     this.y3+=wind.vy*dt*this.wf*(0.4+zf*1.8)*FOV*0.004;
@@ -271,7 +271,7 @@ class Star {
     const sx=this.x3*sc+ox, sy=this.y3*sc+oy;
     if(!isFinite(sx+sy)||sx<-60||sx>W+60||sy<-60||sy>H+60) return;
     const prox=1-this.z/DEPTH;
-    const twk=0.5+0.5*Math.sin(this.tp);
+    const twk=0.5+0.35*Math.sin(this.tp)+0.15*Math.sin(this.tp2||0);
     const alpha=Math.min(1,prox*2.8)*(0.55+0.45*twk)*this.fadeAlpha;
     if(alpha<0.01) return;
     if(this.type>0){
@@ -429,9 +429,12 @@ class StarCluster {
 class BlackHole {
   constructor(fresh){ this.reset(fresh); }
   reset(fresh){
-    const sp=safePos(blackHoles,W*1.6,H*1.6,W*0.45);
+    const sp=safePos(blackHoles,W*1.6,H*1.6,W*0.45,40);
     this.x3=sp.x3; this.y3=sp.y3;
-    this.z=fresh?200+Math.random()*700:700+Math.random()*400; this.pz=this.z;
+    this.z=fresh
+      ? (sp.ok ? 200+Math.random()*700 : 650+Math.random()*350)
+      : (sp.ok ? 700+Math.random()*400 : 950+Math.random()*250);
+    this.pz=this.z;
     this.baseR=10+Math.random()*28;
     this.diskRMult=7.5+Math.random()*5.5;
     this.speed=0.06+Math.random()*0.1;
@@ -439,6 +442,13 @@ class BlackHole {
     this.globalAngle=Math.random()*Math.PI*2;
     this.diskFlatten=0.08+Math.random()*0.38;
     this.pulse=Math.random()*Math.PI*2; this.pulseSpeed=0.0008+Math.random()*0.001;
+    this.diskPhase=Math.random()*Math.PI*2;
+    this.diskFlicker=Math.random()*Math.PI*2;
+    this.ringFlicker=Math.random()*Math.PI*2;
+    this.ringFlicker2=Math.random()*Math.PI*2;
+    this.lensPhase=Math.random()*Math.PI*2;
+    this.lensPhase2=Math.random()*Math.PI*2;
+    this.lensPhase3=Math.random()*Math.PI*2;
     this.fadeAlpha=fresh?1:0; this.dying=false; this._dead=false;
   }
   update(dt){
@@ -447,6 +457,10 @@ class BlackHole {
     this.x3+=wind.vx*dt*this.wf*(0.3+zf)*FOV*0.003;
     this.y3+=wind.vy*dt*this.wf*(0.3+zf)*FOV*0.003;
     this.pulse+=this.pulseSpeed*dt;
+    this.diskPhase+=0.00055*dt;
+    this.diskFlicker+=0.00180*dt;
+    this.ringFlicker+=0.00320*dt;
+    this.ringFlicker2+=0.00890*dt;
     if(!this.dying&&this.fadeAlpha<1) this.fadeAlpha=Math.min(1,this.fadeAlpha+FADE_SPEED*0.5*dt);
 
     if(!this.dying){
@@ -470,6 +484,7 @@ class BlackHole {
     const alpha=Math.min(1,prox*3)*this.fadeAlpha;
     if(alpha<0.02) return;
     const fl=1+0.04*Math.sin(this.pulse);
+    const diskBri=0.72+0.18*Math.sin(this.diskPhase)+0.10*Math.sin(this.diskFlicker);
 
     for(let i=5;i>=1;i--){
       const lr=r*(2.2+i*0.9);
@@ -500,24 +515,29 @@ class BlackHole {
     ctx.scale(1,this.diskFlatten);
     const diskR=r*this.diskRMult*fl;
     const dg=ctx.createRadialGradient(0,0,r*0.92,0,0,diskR);
-    dg.addColorStop(0,    `rgba(255,255,210,${alpha*0.98})`);
-    dg.addColorStop(0.06, `rgba(255,230,100,${alpha*0.92})`);
-    dg.addColorStop(0.16, `rgba(255,150,20,${alpha*0.75})`);
-    dg.addColorStop(0.32, `rgba(255,80,10,${alpha*0.50})`);
-    dg.addColorStop(0.55, `rgba(180,30,0,${alpha*0.22})`);
+    dg.addColorStop(0,    `rgba(255,255,210,${alpha*0.98*diskBri})`);
+    dg.addColorStop(0.06, `rgba(255,230,100,${alpha*0.92*diskBri})`);
+    dg.addColorStop(0.16, `rgba(255,150,20,${alpha*0.75*diskBri})`);
+    dg.addColorStop(0.32, `rgba(255,80,10,${alpha*0.50*diskBri})`);
+    dg.addColorStop(0.55, `rgba(180,30,0,${alpha*0.22*diskBri})`);
     dg.addColorStop(1,    `rgba(40,0,0,0)`);
     ctx.beginPath(); ctx.arc(0,0,diskR,0,Math.PI*2);
     ctx.fillStyle=dg; ctx.globalCompositeOperation='screen'; ctx.fill();
     ctx.globalCompositeOperation='source-over';
 
-    ctx.beginPath(); ctx.arc(0,0,r*1.3,0,Math.PI*2);
-    ctx.strokeStyle=`rgba(255,235,170,${alpha*0.70})`; ctx.lineWidth=r*0.18; ctx.stroke();
+    const ringBri=0.55+0.28*Math.sin(this.ringFlicker)+0.17*Math.sin(this.ringFlicker2);
+    const rb=Math.max(0.70, ringBri);
+    const lensSize1=1.3+0.12*Math.sin(this.ringFlicker*0.7+1.2);
+    const lensSize2=2.0+0.20*Math.sin(this.ringFlicker2*0.5+0.4);
 
-    ctx.beginPath(); ctx.arc(0,0,r*2.0,0,Math.PI*2);
-    ctx.strokeStyle=`rgba(255,180,80,${alpha*0.20})`; ctx.lineWidth=r*0.08; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,0,r*lensSize1,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(255,235,170,${alpha*rb})`; ctx.lineWidth=r*0.18; ctx.stroke();
+
+    ctx.beginPath(); ctx.arc(0,0,r*lensSize2,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(255,180,80,${alpha*rb*0.28})`; ctx.lineWidth=r*0.08; ctx.stroke();
     ctx.restore();
 
-    ctx.beginPath(); ctx.arc(0,0,r*0.82,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill();
+    ctx.beginPath(); ctx.arc(0,0,r*0.82,0,Math.PI*2); ctx.fillStyle=`rgba(0,0,0,${alpha})`; ctx.fill();
     ctx.beginPath(); ctx.arc(0,0,r*0.82,0,Math.PI*2);
     ctx.strokeStyle=`rgba(255,200,80,${alpha*0.65})`; ctx.lineWidth=Math.max(1,r*0.08); ctx.stroke();
 
@@ -613,10 +633,9 @@ class QuasarGalaxy {
   reset(){
     const sp=safePos(quasars,W*1.7,H*1.7,W*0.35);
     this.x3=sp.x3; this.y3=sp.y3;
-    // daleko — duże z, bardzo wolno się zbliża
     this.z=1000+Math.random()*150; this.pz=this.z;
     this.baseR=22+Math.random()*18;
-    this.speed=0.0018+Math.random()*0.002; // bardzo wolny drift z
+    this.speed=0.0018+Math.random()*0.002; 
     this.wf=0.008+Math.random()*0.012;
     this.driftAngle=Math.random()*Math.PI*2;
     this.driftSpeed=0.0002+Math.random()*0.0002;
@@ -624,15 +643,15 @@ class QuasarGalaxy {
     this.pulseSpeed=0.0010+Math.random()*0.0015;
     this.globalAngle=Math.random()*Math.PI*2;
     this.diskFlatten=0.10+Math.random()*0.20;
-    // ramiona galaktyki — obrót
+
     this.spinAngle=Math.random()*Math.PI*2;
     this.spinSpeed=(0.000025+Math.random()*0.000035)*(Math.random()<0.5?1:-1);
     this.arms=Math.random()<0.5?2:3;
-    // kolor niebieski jak kwazar
+    
     this.cr=60+Math.floor(Math.random()*40);
     this.cg=140+Math.floor(Math.random()*60);
     this.cb=255;
-    // czas życia: losowo od 60s do 240s (4 minuty)
+    
     this.maxLife=60000+Math.random()*180000;
     this.lifeTime=0;
     this.fadeAlpha=0; this.dying=false;
@@ -643,20 +662,20 @@ class QuasarGalaxy {
     oc.width=oc.height=sz;
     const ot=oc.getContext('2d'), cx2=sz/2, cy2=sz/2, mR=sz*0.46;
     const cr=this.cr, cg=this.cg, cb=this.cb;
-    // poświata centralna
+
     const bg=ot.createRadialGradient(cx2,cy2,0,cx2,cy2,mR*0.38);
     bg.addColorStop(0,`rgba(${cr},${cg},${cb},0.45)`);
     bg.addColorStop(0.45,`rgba(${cr},${cg},${cb},0.15)`);
     bg.addColorStop(1,`rgba(${cr},${cg},${cb},0)`);
     ot.beginPath(); ot.arc(cx2,cy2,mR*0.38,0,Math.PI*2); ot.fillStyle=bg; ot.fill();
-    // białe centrum
+
     const cg2=ot.createRadialGradient(cx2,cy2,0,cx2,cy2,mR*0.14);
     cg2.addColorStop(0,'rgba(255,255,255,1)');
     cg2.addColorStop(0.2,'rgba(255,255,255,0.9)');
     cg2.addColorStop(0.5,`rgba(${cr},${cg},${cb},0.7)`);
     cg2.addColorStop(1,`rgba(${cr},${cg},${cb},0)`);
     ot.beginPath(); ot.arc(cx2,cy2,mR*0.14,0,Math.PI*2); ot.fillStyle=cg2; ot.fill();
-    // ramiona galaktyki
+
     ot.globalCompositeOperation='screen';
     for(let i=0;i<1800;i++){
       const t=Math.random(), arm=Math.floor(Math.random()*this.arms);
@@ -710,7 +729,6 @@ class QuasarGalaxy {
     const fl=1+0.04*Math.sin(this.pulse);
     const {cr,cg,cb}=this;
 
-    // halo zewnętrzne
     const haloR=r*30*fl;
     const hg=radial(x,y,r,x,y,haloR);
     if(ok(hg)){
@@ -723,7 +741,6 @@ class QuasarGalaxy {
       ctx.globalCompositeOperation='source-over';
     }
 
-    // ramiona galaktyki (offscreen canvas)
     const gSize=r*2*8;
     ctx.save();
     ctx.translate(x,y);
@@ -735,7 +752,6 @@ class QuasarGalaxy {
     ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1;
     ctx.restore();
 
-    // dysk akrecji (niebieski)
     ctx.save();
     ctx.translate(x,y);
     ctx.rotate(this.globalAngle);
@@ -752,14 +768,12 @@ class QuasarGalaxy {
     ctx.beginPath(); ctx.arc(0,0,diskR,0,Math.PI*2);
     ctx.fillStyle=dg; ctx.globalCompositeOperation='screen'; ctx.fill();
     ctx.globalCompositeOperation='source-over';
-    // pierścień
     ctx.beginPath(); ctx.arc(0,0,r*1.25,0,Math.PI*2);
     ctx.strokeStyle=`rgba(${cr},${Math.min(255,cg+80)},${cb},${alpha*0.65})`; ctx.lineWidth=r*0.16; ctx.stroke();
     ctx.beginPath(); ctx.arc(0,0,r*2.1,0,Math.PI*2);
     ctx.strokeStyle=`rgba(${cr},${cg},${cb},${alpha*0.18})`; ctx.lineWidth=r*0.07; ctx.stroke();
     ctx.restore();
 
-    // jety (niebieskie, jak kwazar)
     const bp=0.5+0.5*Math.abs(Math.sin(this.pulse*1.3));
     const jl=r*20*fl;
     for(const sign of [1,-1]){
@@ -776,8 +790,7 @@ class QuasarGalaxy {
       }
     }
 
-    // czarna dziura — czarne koło + niebieski ring
-    ctx.beginPath(); ctx.arc(0,0,r*0.82,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill();
+    ctx.beginPath(); ctx.arc(0,0,r*0.82,0,Math.PI*2); ctx.fillStyle=`rgba(0,0,0,${alpha})`; ctx.fill();
     ctx.beginPath(); ctx.arc(0,0,r*0.82,0,Math.PI*2);
     ctx.strokeStyle=`rgba(${cr},${cg},${cb},${alpha*0.60})`; ctx.lineWidth=Math.max(1,r*0.09); ctx.stroke();
 
@@ -892,7 +905,7 @@ class Pulsar {
     this.speed=0.22+Math.random()*0.3; this.wf=0.25+Math.random()*0.35;
     this.beamAngle=Math.random()*Math.PI*2;
     this.fastRotator = Math.random()<0.5;
-    this.rotSpeed=(this.fastRotator?0.010+Math.random()*0.012:0.002+Math.random()*0.004)*(Math.random()<0.5?1:-1);
+    this.rotSpeed=(this.fastRotator?0.010+Math.random()*0.008:0.002+Math.random()*0.004)*0.6*(Math.random()<0.5?1:-1);
     this.brightness = 0.45+Math.random()*0.55;
     this.fastBlink = Math.random()<0.5;
     this.phase=Math.random()*Math.PI*2;
@@ -955,23 +968,25 @@ class SuperBlackHole {
     this.x3=(Math.random()-0.5)*W*0.85; this.y3=(Math.random()-0.5)*H*0.85;
     this.z=480+Math.random()*480; this.pz=this.z;
     this.baseR=18+Math.random()*48;
+    this.diskRMult=7.5+Math.random()*5.5;
     this.speed=0.006+Math.random()*0.01; this.wf=0.04+Math.random()*0.06;
     this.globalAngle=Math.random()*Math.PI*2;
-    this.diskFlatten=0.08+Math.random()*0.18;
+    this.diskFlatten=0.08+Math.random()*0.38;
     this.pulse=Math.random()*Math.PI*2; this.pulseSpeed=0.0004+Math.random()*0.0005;
+    this.diskPhase=Math.random()*Math.PI*2;
+    this.diskFlicker=Math.random()*Math.PI*2;
+    this.ringFlicker=Math.random()*Math.PI*2;
+    this.ringFlicker2=Math.random()*Math.PI*2;
     this.fadeAlpha=0; this.dying=false; this.lifeTime=0;
     this.maxLife=75000+Math.random()*55000;
     const nc=3+Math.floor(Math.random()*4);
-    this.planets=Array.from({length:nc},(v,i)=>{
-      const pp=SBH_PLANETS[Math.floor(Math.random()*SBH_PLANETS.length)];
-      return {
-        angle:Math.random()*Math.PI*2,
-        speed:(0.0004+Math.random()*0.0012/Math.sqrt(i+1))*(Math.random()<0.5?1:-1),
-        orbitR:3.4+(i+Math.random()*0.9)*1.7,
-        sizeF:0.07+Math.random()*0.13,
-        cr:pp.cr,cg:pp.cg,cb:pp.cb,
-      };
-    });
+    this.planets=Array.from({length:nc},(v,i)=>({
+      angle:Math.random()*Math.PI*2,
+      speed:(0.0004+Math.random()*0.0012/Math.sqrt(i+1))*(Math.random()<0.5?1:-1),
+      orbitR:3.4+(i+Math.random()*0.9)*1.7,
+      sizeF:0.07+Math.random()*0.13,
+      ...SBH_PLANETS[Math.floor(Math.random()*SBH_PLANETS.length)],
+    }));
   }
   _planet(wx,wy,p,a,r){
     const ps=Math.max(2,p.sizeF*r);
@@ -993,6 +1008,10 @@ class SuperBlackHole {
     this.x3+=wind.vx*dt*this.wf*(0.3+zf)*FOV*0.003;
     this.y3+=wind.vy*dt*this.wf*(0.3+zf)*FOV*0.003;
     this.pulse+=this.pulseSpeed*dt;
+    this.diskPhase+=0.00055*dt;
+    this.diskFlicker+=0.00180*dt;
+    this.ringFlicker+=0.00320*dt;
+    this.ringFlicker2+=0.00890*dt;
     for(const p of this.planets) p.angle+=p.speed*dt;
     if(!this.dying&&this.fadeAlpha<1) this.fadeAlpha=Math.min(1,this.fadeAlpha+FADE_SPEED*0.22*dt);
     if((this.z<=120||this.lifeTime>=this.maxLife)&&!this.dying) this.dying=true;
@@ -1010,14 +1029,17 @@ class SuperBlackHole {
     const a=Math.min(1,prox*2.2)*this.fadeAlpha;
     if(a<0.02) return;
     const fl=1+0.04*Math.sin(this.pulse);
+    const diskBri=0.72+0.18*Math.sin(this.diskPhase)+0.10*Math.sin(this.diskFlicker);
+
     for(let i=6;i>=1;i--){
       const lr=r*(2.2+i*1.15);
       const lg=ctx.createRadialGradient(x,y,lr*0.78,x,y,lr);
       lg.addColorStop(0,'rgba(255,255,255,0)');
-      lg.addColorStop(0.5,`rgba(255,220,160,${a*0.045/i})`);
+      lg.addColorStop(0.5,`rgba(255,240,200,${a*0.045/i})`);
       lg.addColorStop(1,'rgba(255,255,255,0)');
       ctx.beginPath(); ctx.arc(x,y,lr,0,Math.PI*2); ctx.fillStyle=lg; ctx.fill();
     }
+
     const cosG=Math.cos(this.globalAngle),sinG=Math.sin(this.globalAngle);
     const pdata=this.planets.map(p=>{
       const pr=p.orbitR*r;
@@ -1026,36 +1048,49 @@ class SuperBlackHole {
       return {wx,wy,depth:Math.sin(p.angle),p};
     });
     for(const {wx,wy,depth,p} of pdata){ if(depth<0) this._planet(wx,wy,p,a*Math.max(0.25,0.8+depth*0.6),r); }
+
     ctx.save(); ctx.translate(x,y); ctx.rotate(this.globalAngle);
     const jl=r*14*fl;
     for(const sign of [1,-1]){
       const jg=ctx.createLinearGradient(0,0,0,sign*jl);
-      jg.addColorStop(0,`rgba(210,235,255,${a*0.75})`);
-      jg.addColorStop(0.2,`rgba(130,190,255,${a*0.45})`);
-      jg.addColorStop(1,'rgba(50,90,255,0)');
+      jg.addColorStop(0,`rgba(160,210,255,${a*0.70})`);
+      jg.addColorStop(0.35,`rgba(90,150,255,${a*0.35})`);
+      jg.addColorStop(1,'rgba(60,100,255,0)');
       ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,sign*jl);
       ctx.strokeStyle=jg; ctx.lineWidth=r*0.32;
       ctx.globalCompositeOperation='screen'; ctx.stroke();
       ctx.globalCompositeOperation='source-over';
     }
+
     ctx.save(); ctx.scale(1,this.diskFlatten);
-    const diskR=r*9.5*fl;
-    const dg=ctx.createRadialGradient(0,0,r*0.88,0,0,diskR);
-    dg.addColorStop(0,`rgba(255,255,230,${a*0.98})`);
-    dg.addColorStop(0.08,`rgba(255,220,80,${a*0.9})`);
-    dg.addColorStop(0.25,`rgba(255,100,15,${a*0.6})`);
-    dg.addColorStop(0.55,`rgba(180,35,0,${a*0.28})`);
-    dg.addColorStop(1,`rgba(40,0,0,0)`);
+    const diskR=r*this.diskRMult*fl;
+    const dg=ctx.createRadialGradient(0,0,r*0.92,0,0,diskR);
+    dg.addColorStop(0,    `rgba(255,255,210,${a*0.98*diskBri})`);
+    dg.addColorStop(0.06, `rgba(255,230,100,${a*0.92*diskBri})`);
+    dg.addColorStop(0.16, `rgba(255,150,20,${a*0.75*diskBri})`);
+    dg.addColorStop(0.32, `rgba(255,80,10,${a*0.50*diskBri})`);
+    dg.addColorStop(0.55, `rgba(180,30,0,${a*0.22*diskBri})`);
+    dg.addColorStop(1,    `rgba(40,0,0,0)`);
     ctx.beginPath(); ctx.arc(0,0,diskR,0,Math.PI*2);
     ctx.fillStyle=dg; ctx.globalCompositeOperation='screen'; ctx.fill();
     ctx.globalCompositeOperation='source-over';
-    ctx.beginPath(); ctx.arc(0,0,r*1.25,0,Math.PI*2);
-    ctx.strokeStyle=`rgba(255,245,190,${a*0.65})`; ctx.lineWidth=r*0.2; ctx.stroke();
+
+    const ringBri=0.55+0.28*Math.sin(this.ringFlicker)+0.17*Math.sin(this.ringFlicker2);
+    const rb=Math.max(0.70,ringBri);
+    const lensSize1=1.3+0.12*Math.sin(this.ringFlicker*0.7+1.2);
+    const lensSize2=2.0+0.20*Math.sin(this.ringFlicker2*0.5+0.4);
+
+    ctx.beginPath(); ctx.arc(0,0,r*lensSize1,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(255,235,170,${a*rb})`; ctx.lineWidth=r*0.18; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,0,r*lensSize2,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(255,180,80,${a*rb*0.28})`; ctx.lineWidth=r*0.08; ctx.stroke();
     ctx.restore();
-    ctx.beginPath(); ctx.arc(0,0,r*0.80,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill();
-    ctx.beginPath(); ctx.arc(0,0,r*0.80,0,Math.PI*2);
-    ctx.strokeStyle=`rgba(255,215,100,${a*0.75})`; ctx.lineWidth=Math.max(1.5,r*0.09); ctx.stroke();
+
+    ctx.beginPath(); ctx.arc(0,0,r*0.82,0,Math.PI*2); ctx.fillStyle=`rgba(0,0,0,${a})`; ctx.fill();
+    ctx.beginPath(); ctx.arc(0,0,r*0.82,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(255,200,80,${a*0.65})`; ctx.lineWidth=Math.max(1,r*0.08); ctx.stroke();
     ctx.restore();
+
     for(const {wx,wy,depth,p} of pdata){ if(depth>=0) this._planet(wx,wy,p,a,r); }
   }
 }
@@ -1187,6 +1222,59 @@ class Supernova {
   }
 }
 
+class GammaRayBurst {
+  constructor(){
+    const ang=Math.random()*Math.PI*2;
+    const dist=Math.max(W,H)*1.4;
+    this.sx=cx+Math.cos(ang)*dist; this.sy=cy+Math.sin(ang)*dist;
+    this.ex=cx+Math.cos(ang+Math.PI)*dist; this.ey=cy+Math.sin(ang+Math.PI)*dist;
+    this.angle=ang; this.life=0;
+    this.flashDuration=600+Math.random()*500;
+    this.fadeDuration=2500+Math.random()*2000;
+    this.phase='flash'; this.alpha=0;
+    const hue=Math.random();
+    if(hue<0.5){ this.cr=140; this.cg=200; this.cb=255; }
+    else if(hue<0.75){ this.cr=200; this.cg=255; this.cb=180; }
+    else { this.cr=255; this.cg=180; this.cb=255; }
+    this.width=2+Math.random()*4; this.dead=false;
+  }
+  update(dt){
+    this.life+=dt;
+    if(this.phase==='flash'){
+      this.alpha=Math.min(1,this.life/120);
+      if(this.life>=this.flashDuration){ this.phase='fade'; this.life=0; }
+    } else {
+      this.alpha=Math.max(0,1-this.life/this.fadeDuration);
+      if(this.alpha<=0) this.dead=true;
+    }
+  }
+  draw(){
+    if(this.alpha<0.005) return;
+    const prog=this.phase==='flash'?Math.min(1,this.life/this.flashDuration):1;
+    const sx=this.sx,sy=this.sy;
+    const ex=sx+(this.ex-sx)*prog,ey=sy+(this.ey-sy)*prog;
+    const {cr,cg,cb}=this;
+    const perpX=Math.cos(this.angle+Math.PI*0.5),perpY=Math.sin(this.angle+Math.PI*0.5);
+    const gw=this.width*18;
+    const gg=linear(sx-perpX*gw,sy-perpY*gw,sx+perpX*gw,sy+perpY*gw);
+    if(ok(gg)){
+      gg.addColorStop(0,'rgba(0,0,0,0)');
+      gg.addColorStop(0.38,`rgba(${cr},${cg},${cb},${this.alpha*0.06})`);
+      gg.addColorStop(0.5,`rgba(${cr},${cg},${cb},${this.alpha*0.28})`);
+      gg.addColorStop(0.62,`rgba(${cr},${cg},${cb},${this.alpha*0.06})`);
+      gg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey);
+      ctx.strokeStyle=gg; ctx.lineWidth=gw*2;
+      ctx.globalCompositeOperation='screen'; ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey);
+    ctx.strokeStyle=`rgba(255,255,255,${this.alpha*0.85})`;
+    ctx.lineWidth=Math.max(1,this.width);
+    ctx.globalCompositeOperation='screen'; ctx.stroke();
+    ctx.globalCompositeOperation='source-over';
+  }
+}
+
 const stars=[],dust=[],nebulae=[],clusters=[],blackHoles=[],galaxies=[],comets=[],pulsars=[];
 const superBHs=[];
 
@@ -1194,6 +1282,8 @@ const quasars=[];
 
 let shootingStars=[],supernovae=[],ssTimer=1200;
 let snCooldown=0;
+let grbs=[];
+let _grbTimer=300000+Math.random()*600000;
 
 const BH_MAX_SLOTS = 4;
 const BH_SLOT_COOLDOWN_MIN = 30000;
@@ -1206,6 +1296,10 @@ let sbhRollTimer = 0;
 let sbhGracePeriod = 0;
 
 let _quasarTimer = 0;
+
+let _introSpawnTimer = 10000;
+let _introSpawned = false;
+let _introPulsarCount = 1;
 
 function resize(){
   if(!canvas) return;
@@ -1223,7 +1317,10 @@ function init(){
   blackHoles.length=galaxies.length=quasars.length=0;
   superBHs.length=0; sbhQueue=0; sbhRollTimer=0; sbhGracePeriod=0;
   supernovae.length=0; snCooldown=8000;
+  grbs.length=0; _grbTimer=300000+Math.random()*600000;
   bhSlotCooldowns.fill(0); _quasarTimer=0;
+  comets.length=0; pulsars.length=0; window._pulsarTarget=0;
+  _introSpawnTimer=10000; _introSpawned=false; _introPulsarCount=1;
   for(let i=0;i<STAR_COUNT;i++)    stars.push(new Star(true));
   for(let i=0;i<DUST_COUNT;i++)    dust.push(new DustCloud(true));
   for(let i=0;i<NEBULA_COUNT;i++)  nebulae.push(new Nebula(true));
@@ -1236,15 +1333,19 @@ function init(){
   bhSlotCooldowns[3] = BH_SLOT_COOLDOWN_MIN + Math.random()*(BH_SLOT_COOLDOWN_MAX-BH_SLOT_COOLDOWN_MIN);
   galaxies.push(new Galaxy(true));
   galaxies.push(new Galaxy(true));
-  for(let i=0;i<COMET_COUNT;i++)   comets.push(new Comet(true));
 
   let _pCount=1;
   if(Math.random()<0.50) _pCount=2;
   if(Math.random()<0.30) _pCount=3;
   if(Math.random()<0.10) _pCount=4;
   if(Math.random()<0.05) _pCount=5;
-  window._pulsarTarget=_pCount;
-  for(let i=0;i<_pCount;i++) pulsars.push(new Pulsar(true));
+  _introPulsarCount=_pCount;
+}
+
+function _spawnIntroObjects(){
+  for(let i=0;i<COMET_COUNT;i++) comets.push(new Comet(true));
+  window._pulsarTarget=_introPulsarCount;
+  for(let i=0;i<_introPulsarCount;i++) pulsars.push(new Pulsar(true));
 }
 
 function _majorOnScreen(){
@@ -1308,6 +1409,10 @@ function loop(now){
   _raf=requestAnimationFrame(loop);
   if(last<0) last=now;
   const dt=Math.min(now-last,50); last=now;
+  if(!_introSpawned){
+    _introSpawnTimer-=dt;
+    if(_introSpawnTimer<=0){ _spawnIntroObjects(); _introSpawned=true; }
+  }
   updateCamSpeed(dt);
   updateWind(dt); updateMouse(dt); updateHorizon(dt); updateBgMood(dt);
   ssTimer-=dt; if(ssTimer<=0){ shootingStars.push(new ShootingStar()); ssTimer=2500+Math.random()*4500; }
@@ -1347,7 +1452,7 @@ function loop(now){
       sbhRollTimer=0;
       if(Math.random()<1/10) sbhQueue++;
     }
-    if(sbhQueue>0&&blackHoles.length===0){
+    if(sbhQueue>0&&blackHoles.length===0&&quasars.length===0){
       superBHs.push(new SuperBlackHole());
       sbhQueue--;
     }
@@ -1364,7 +1469,7 @@ function loop(now){
       const manyPulsars=pulsars.filter(p=>!p.dying).length>3;
       const boosted=activeSBH||manyPulsars;
       const chance=boosted?(1/100):(1/300);
-      if(bhCount<=2&&Math.random()<chance) quasars.push(new QuasarGalaxy());
+      if(bhCount<=2&&superBHs.length===0&&Math.random()<chance) quasars.push(new QuasarGalaxy());
     }
   } else {
     _quasarTimer=0;
@@ -1396,6 +1501,10 @@ function loop(now){
   for(const p of pulsars)    { p.update(dt); p.draw(); }
   for(const ss of shootingStars){ ss.update(dt); ss.draw(); }
   shootingStars=shootingStars.filter(ss=>!ss.dead);
+  _grbTimer-=dt;
+  if(_grbTimer<=0&&grbs.length===0){ grbs.push(new GammaRayBurst()); _grbTimer=300000+Math.random()*600000; }
+  grbs=grbs.filter(g=>!g.dead);
+  for(const g of grbs) g.update(dt);
   for(const sn of supernovae){ sn.update(dt); sn.draw(); }
   if(sbhActive) sbhGracePeriod=3000;
   else if(sbhGracePeriod>0) sbhGracePeriod-=dt;
@@ -1416,6 +1525,7 @@ function loop(now){
     console.warn('[galaxyBg] render error:', e);
   }
   ctx.restore();
+  for(const g of grbs) g.draw();
 
   if(snFlash.active&&snFlash.alpha>0.005){
     const ft=snFlash.elapsed/snFlash.duration;
