@@ -83,7 +83,7 @@ Go to [**Releases**](../../releases) and download the latest `Oreo's Biome Snipe
 
 **Requirements:**
 ```
-pip install pywebview requests websockets winotify pygame keyboard pyinstaller
+pip install pywebview requests websockets==13.1 winotify pygame keyboard pypresence pyinstaller
 ```
 
 **Build:**
@@ -102,8 +102,8 @@ When two biomes are detected at the same moment, the sniper picks the highest-ti
 | Tier | Biomes |
 |------|--------|
 | ⭐ Rare (2) | Glitch, Cyberspace, Dreamspace |
-| ◆ Uncommon (1) | Singularity |
-| ● Common (0) | Corruption, Rainy, Null, Windy, Snowy, Hell, Heaven, Sandstorm, Starfall |
+| ◆ Uncommon (1) | Singularity Radiant Forest |
+| ● Common (0) |Lost Forest Corruption, Rainy, Null, Windy, Snowy, Hell, Heaven, Sandstorm, Starfall |
 | ○ Misc (-1) | Rin, VoidCoin, Jester, Oblivion |
 
 Misc-tier biomes do not trigger the lock screen by default.
