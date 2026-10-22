@@ -36,7 +36,7 @@
 <br><br>
 <img src="https://raw.githubusercontent.com/Oreo2137/Oreo-s-Biome-Sniper/main/stats.png" width="800" alt="Stats tab">
 <br><br>
-<img scr="https://raw.githubusercontent.com/Oreo2137/Oreo-s-Biome-Sniper/main/galaxytheme.png" width="800" alt="Galaxy Theme">
+<img src="https://raw.githubusercontent.com/Oreo2137/Oreo-s-Biome-Sniper/main/galaxytheme.png" width="800" alt="Galaxy Theme">
  
 </div>
 
