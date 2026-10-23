@@ -6,7 +6,7 @@
 
 **Fast, lightweight biome sniper for Sol's RNG on Roblox**
 
-[![Version](https://img.shields.io/badge/version-v8.18-cc785c?style=flat-square)](../../releases)
+[![Version](https://img.shields.io/badge/version-v9.11-cc785c?style=flat-square)](../../releases)
 [![Platform](https://img.shields.io/badge/platform-Windows-blue?style=flat-square&logo=windows)](../../releases)
 [![Python](https://img.shields.io/badge/python-3.10+-yellow?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-red?style=flat-square)](#license)
